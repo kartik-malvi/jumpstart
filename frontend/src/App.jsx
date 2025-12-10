@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Test from "./pages/Test";
+import Pretest from "./pages/Pretest";
 
 // LAYOUT
 import MainLayout from "./layout/MainLayout";
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       { path: "/login", element: <Login /> },
       { path: "/signup", element: <Signup /> },
       { path: "/test", element: <Test /> },
+        { path: "/pretest", element: <Pretest /> },
       {
         path: "/dashboard",
         element: (
