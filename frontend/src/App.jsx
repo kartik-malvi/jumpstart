@@ -7,48 +7,33 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import Test from "./pages/Test";
 
-// LAYOUTS & ROUTES
+// LAYOUT
 import MainLayout from "./layout/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const router = createBrowserRouter([
-  // MAIN PUBLIC ROUTES
   {
     path: "/",
-    element: <MainLayout />,
+    element: <MainLayout />, // Header + Footer + Outlet
     children: [
+      { path: "/", element: <Home /> },
+      { path: "/login", element: <Login /> },
+      { path: "/signup", element: <Signup /> },
+      { path: "/test", element: <Test /> },
       {
-        path: "/",
-        element: <Home />,
+        path: "/dashboard",
+        element: (
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        ),
       },
     ],
   },
-
-  // AUTH ROUTES
-  {
-    path: "/login",
-    element: <Login />,
-  },
-
-  {
-    path: "/signup",
-    element: <Signup />,
-  },
-
-  // PROTECTED ROUTES (Require login)
-  {
-    path: "/dashboard",
-    element: (
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
-    ),
-  },
 ]);
 
-const App = () => {
+export default function App() {
   return <RouterProvider router={router} />;
-};
-
-export default App;
+}

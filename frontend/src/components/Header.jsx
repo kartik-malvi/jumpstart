@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useContext } from "react";
+
 import {
   Dialog,
   DialogPanel,
@@ -39,7 +40,7 @@ export default function Header() {
             <Link to="/" className="text-sm font-semibold text-gray-900">
               Home
             </Link>
-            <Link to="#" className="text-sm font-semibold text-gray-900">
+            <Link to="/test" className="text-sm font-semibold text-gray-900">
               Tests
             </Link>
             <Link to="/dashboard" className="text-sm font-semibold text-gray-900">

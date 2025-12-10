@@ -1,15 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import GoogleIcon from "../assets/Social-icon.png";
 import logo from "../assets/logo.png";
 import Header from "../components/Header";
 import Footer from "../components/footer";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
-// CORRECT basePath (no /v1)
 const basePath = "https://jumpstart-backend.alwaysdata.net/api/v1";
+const GOOGLE_CLIENT_ID =
+  "773594743314-9n0eb71lufvvh4utldar312r8meh2mji.apps.googleusercontent.com";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { loginWithGoogle } = useContext(AuthContext);
 
   const [form, setForm] = useState({
     name: "",
@@ -26,6 +29,61 @@ export default function Signup() {
     setForm({ ...form, [field]: value });
   };
 
+  // ------------------------------------------------
+  // GOOGLE SIGNUP HANDLER
+  // ------------------------------------------------
+  const handleGoogleResponse = async (response) => {
+    try {
+      const id_token = response.credential;
+
+      await loginWithGoogle(id_token);
+
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Google Signup Error:", err);
+      setMsg(err.message || "Google Signup Failed");
+    }
+  };
+
+  // ------------------------------------------------
+  // LOAD GOOGLE SCRIPT + BUTTON
+  // ------------------------------------------------
+  useEffect(() => {
+    const loadScript = () =>
+      new Promise((resolve) => {
+        if (window.google && window.google.accounts) {
+          resolve();
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        script.onload = resolve;
+
+        document.body.appendChild(script);
+      });
+
+    loadScript().then(() => {
+      if (!window.google) return;
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleResponse,
+        ux_mode: "popup",
+      });
+
+      window.google.accounts.id.renderButton(
+        document.getElementById("google-signup"),
+        { theme: "outline", size: "large", width: "100%" }
+      );
+    });
+  }, []);
+
+  // ------------------------------------------------
+  // NORMAL SIGNUP
+  // ------------------------------------------------
   const handleSubmit = async () => {
     setLoading(true);
     setMsg("");
@@ -42,12 +100,7 @@ export default function Signup() {
 
       if (res.ok) {
         setMsg("Signup successful!");
-
-        // redirect after signup success
-        setTimeout(() => {
-          navigate("/login");
-        }, 500);
-
+        setTimeout(() => navigate("/login"), 500);
       } else {
         setMsg(data.message || "Signup failed");
       }
@@ -61,10 +114,8 @@ export default function Signup() {
 
   return (
     <>
-      <Header />
-
+      
       <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
-        {/* LEFT SIDE */}
         <div className="flex flex-col justify-center px-8 md:px-0 py-10 max-w-[360px] w-full mx-auto">
 
           <div className="mb-10">
@@ -73,64 +124,62 @@ export default function Signup() {
 
           <h2 className="text-3xl font-bold mb-6">Sign up</h2>
 
-          {/* NAME */}
+          {/* FORM FIELDS */}
           <div className="mb-5">
             <label className="block text-sm mb-1 font-medium">Name*</label>
             <input
               type="text"
               placeholder="Full name"
               onChange={(e) => handleChange("name", e.target.value)}
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-black outline-none"
+              className="w-full border p-3 rounded-lg"
             />
           </div>
 
-          {/* MOBILE */}
           <div className="mb-5">
             <label className="block text-sm mb-1 font-medium">Mobile*</label>
             <input
               type="number"
               placeholder="Mobile number"
               onChange={(e) => handleChange("mobile", e.target.value)}
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-black outline-none"
+              className="w-full border p-3 rounded-lg"
             />
           </div>
 
-          {/* EMAIL */}
           <div className="mb-5">
             <label className="block text-sm mb-1 font-medium">Email*</label>
             <input
               type="email"
               placeholder="Email"
               onChange={(e) => handleChange("email", e.target.value)}
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-black outline-none"
+              className="w-full border p-3 rounded-lg"
             />
           </div>
 
-          {/* PASSWORD */}
           <div className="mb-4">
             <label className="block text-sm mb-1 font-medium">Password*</label>
             <input
               type="password"
               placeholder="Password"
               onChange={(e) => handleChange("password", e.target.value)}
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-black outline-none"
+              className="w-full border p-3 rounded-lg"
             />
           </div>
 
-          {/* CONFIRM PASSWORD */}
           <div className="mb-4">
-            <label className="block text-sm mb-1 font-medium">Confirm Password*</label>
+            <label className="block text-sm mb-1 font-medium">
+              Confirm Password*
+            </label>
             <input
               type="password"
               placeholder="Re-enter password"
               onChange={(e) =>
                 handleChange("password_confirmation", e.target.value)
               }
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-black outline-none"
+              className="w-full border p-3 rounded-lg"
             />
           </div>
 
-          {/* SUBMIT */}
+          {/* SUBMIT BUTTON */}
           <button
             onClick={handleSubmit}
             disabled={loading}
@@ -139,10 +188,8 @@ export default function Signup() {
             {loading ? "Creating account..." : "Get started"}
           </button>
 
-          <button className="w-full mt-4 border p-3 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50">
-            <img src={GoogleIcon} className="w-5" alt="google" />
-            Sign up with Google
-          </button>
+          {/* GOOGLE SIGNUP BUTTON */}
+          <div id="google-signup" className="mt-4 w-full"></div>
 
           {msg && (
             <p className="text-center mt-4 text-sm text-red-600">{msg}</p>
@@ -152,7 +199,6 @@ export default function Signup() {
         <div className="hidden md:block bg-[#C3EBEB]"></div>
       </div>
 
-      <Footer />
     </>
   );
 }

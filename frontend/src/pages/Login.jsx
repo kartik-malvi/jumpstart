@@ -1,13 +1,15 @@
-import React, { useState, useContext } from "react";
-import GoogleIcon from "../assets/Social-icon.png";
+import React, { useState, useContext, useEffect } from "react";
 import logo from "../assets/logo.png";
 import Header from "../components/Header";
 import Footer from "../components/footer";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
+const GOOGLE_CLIENT_ID =
+  "773594743314-9n0eb71lufvvh4utldar312r8meh2mji.apps.googleusercontent.com"; // your client ID
+
 export default function Login() {
-  const { login } = useContext(AuthContext);
+  const { login, loginWithGoogle } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -15,6 +17,68 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ------------------------------------------------
+  // GOOGLE LOGIN CALLBACK
+  // ------------------------------------------------
+  const handleGoogleResponse = async (response) => {
+    try {
+      const id_token = response.credential;
+
+      await loginWithGoogle(id_token);
+
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Google Login Error:", err);
+      setError(err.message || "Google Login Failed");
+    }
+  };
+
+  // ------------------------------------------------
+  // LOAD & INITIALIZE GOOGLE BUTTON
+  // ------------------------------------------------
+  useEffect(() => {
+    const loadScript = () => {
+      return new Promise((resolve, reject) => {
+        // If already loaded
+        if (window.google && window.google.accounts) {
+          resolve();
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+
+        script.onload = () => resolve();
+        script.onerror = () => reject("Google script failed to load");
+
+        document.body.appendChild(script);
+      });
+    };
+
+    loadScript().then(() => {
+      if (!window.google || !window.google.accounts) {
+        console.error("Google API not available");
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleResponse,
+        ux_mode: "popup",
+      });
+
+      window.google.accounts.id.renderButton(
+        document.getElementById("google-btn"),
+        { theme: "outline", size: "large", width: "100%" }
+      );
+    });
+  }, []);
+
+  // ------------------------------------------------
+  // EMAIL + PASSWORD LOGIN
+  // ------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -32,18 +96,17 @@ export default function Login() {
 
   return (
     <>
-      <Header />
-      <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
 
-        {/* LEFT SECTION */}
+      <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
         <div className="flex flex-col justify-center px-8 py-10 max-w-[360px] w-full mx-auto">
-          <img src={logo} className="mb-10" />
+          <img src={logo} className="mb-10" alt="logo" />
 
           <h2 className="text-3xl font-bold mb-2">Log in</h2>
           <p className="text-gray-500 mb-6">
             Welcome back! Please enter your details.
           </p>
 
+          {/* EMAIL LOGIN FORM */}
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label className="block text-sm mb-1 font-medium">Email</label>
@@ -78,10 +141,8 @@ export default function Login() {
             </button>
           </form>
 
-          <button className="w-full mt-4 border p-3 rounded-lg flex justify-center gap-2">
-            <img src={GoogleIcon} className="w-5" />
-            Sign in with Google
-          </button>
+          {/* GOOGLE LOGIN BUTTON */}
+          <div id="google-btn" className="mt-4 w-full"></div>
 
           <p className="text-center mt-6 text-sm">
             Don’t have an account?{" "}
@@ -93,7 +154,7 @@ export default function Login() {
 
         <div className="hidden md:block bg-[#C3EBEB]"></div>
       </div>
-      <Footer />
+
     </>
   );
 }

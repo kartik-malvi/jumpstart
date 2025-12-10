@@ -88,7 +88,6 @@ const Dashboard = () => {
 
   return (
     <>
-      <Header />
       <div className="mx-auto max-w-7xl min-h-screen p-8 pb-30">
         <h1 className="!text-[36px] font-semibold text-gray-800">
           Welcome, {stats.user_name}!
@@ -249,7 +248,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <Footer />
     </>
   );
 };

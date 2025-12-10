@@ -2,10 +2,12 @@ import { createContext, useState, useEffect } from "react";
 
 export const AuthContext = createContext();
 
-// IMPORTANT: Your backend does NOT use /v1
+// BACKEND BASE URL
 const basePath = "https://jumpstart-backend.alwaysdata.net/api/v1";
 
-// Read stored user safely
+// ----------------------------
+// SAFE GET FROM LOCAL STORAGE
+// ----------------------------
 const getStoredUser = () => {
   try {
     const saved = localStorage.getItem("user");
@@ -16,13 +18,15 @@ const getStoredUser = () => {
   }
 };
 
-// Read stored token
 const getStoredToken = () => {
   const saved = localStorage.getItem("token");
   if (!saved || saved === "undefined") return "";
   return saved;
 };
 
+// ----------------------------
+// AUTH PROVIDER
+// ----------------------------
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(getStoredUser());
   const [token, setToken] = useState(getStoredToken());
@@ -36,10 +40,13 @@ export const AuthProvider = ({ children }) => {
       setUser(u);
       setToken(t);
     }
+
     setLoading(false);
   }, []);
 
-  // ✅ FIXED LOGIN FUNCTION BASED ON YOUR BACKEND RESPONSE
+  // ------------------------------------
+  // 1️⃣ LOGIN WITH EMAIL + PASSWORD
+  // ------------------------------------
   const login = async ({ email, password }) => {
     const res = await fetch(`${basePath}/user/auth/login`, {
       method: "POST",
@@ -50,46 +57,80 @@ export const AuthProvider = ({ children }) => {
     const data = await res.json();
     console.log("LOGIN RESPONSE:", data);
 
-    // Backend sends success = false on invalid
     if (!data.success) {
       throw new Error(data.msg || "Login failed");
     }
 
-    // 🔥 Correct mapping from your response:
-    // {
-    //   success: true,
-    //   data: {
-    //      user: {...},
-    //      auth_token: "xxxxx"
-    //   }
-    // }
     const userObj = data.data.user;
     const tokenStr = data.data.auth_token;
 
-    if (!tokenStr) {
-      throw new Error("No token received");
-    }
+    if (!tokenStr) throw new Error("No token received");
 
-    // Save user + token
     setUser(userObj);
     setToken(tokenStr);
 
     localStorage.setItem("user", JSON.stringify(userObj));
     localStorage.setItem("token", tokenStr);
 
-    return data; // Required for redirect in Login.jsx
+    return data;
   };
 
-  // LOGOUT FUNCTION
+  // ------------------------------------
+  // 2️⃣ LOGIN WITH GOOGLE (SOCIAL LOGIN)
+  // ------------------------------------
+  const loginWithGoogle = async (google_id_token) => {
+    const res = await fetch(`${basePath}/user/auth/social-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: "google",
+        token: google_id_token,
+      }),
+    });
+
+    const data = await res.json();
+    console.log("GOOGLE LOGIN RESPONSE:", data);
+
+    if (!data.success) {
+      throw new Error(data.msg || "Google login failed");
+    }
+
+    const userObj = data.data?.user;
+    const tokenStr = data.data?.auth_token;
+
+    if (!tokenStr) throw new Error("No token received");
+
+    setUser(userObj);
+    setToken(tokenStr);
+
+    localStorage.setItem("user", JSON.stringify(userObj));
+    localStorage.setItem("token", tokenStr);
+
+    return data;
+  };
+
+  // ------------------------------------
+  // 3️⃣ LOGOUT
+  // ------------------------------------
   const logout = () => {
     setUser(null);
     setToken("");
+
     localStorage.removeItem("user");
     localStorage.removeItem("token");
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        loginWithGoogle, // <-- Added Google Login
+        logout,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
