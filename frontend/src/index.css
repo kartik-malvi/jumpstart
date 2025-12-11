@@ -14,6 +14,14 @@ h6 {
 
 }
 
+.font-inter{
+    font-family: Inter, sans-serif;
+}
+.custom-list li::marker {
+  color: #188B8B; /* bullet color */
+}
+
+
 p {
     font-family: Inter;
 font-weight: 400;
