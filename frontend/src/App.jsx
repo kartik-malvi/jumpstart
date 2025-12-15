@@ -9,10 +9,12 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Test from "./pages/Test";
 import Pretest from "./pages/Pretest";
+import SectionBreak from "./pages/SectionBreak";
 
 // LAYOUT
 import MainLayout from "./layout/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import BlankLayout from "./layout/BlankLayout";
 
 const router = createBrowserRouter([
   {
@@ -23,7 +25,7 @@ const router = createBrowserRouter([
       { path: "/login", element: <Login /> },
       { path: "/signup", element: <Signup /> },
       { path: "/test", element: <Test /> },
-        { path: "/pretest", element: <Pretest /> },
+      { path: "/pretest", element: <Pretest /> },
       {
         path: "/dashboard",
         element: (
@@ -33,6 +35,11 @@ const router = createBrowserRouter([
         ),
       },
     ],
+  },
+
+  {
+    element: <BlankLayout />,
+    children: [{ path: "/sectionbreak", element: <SectionBreak /> }],
   },
 ]);
 

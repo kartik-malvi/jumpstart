@@ -1,6 +1,6 @@
 import React, { Component } from "react";
-import Header from "../components/Header";
-import Footer from "../components/footer";
+// import Header from "../components/Header";
+// import Footer from "../components/footer";
 import { IoIosCheckmarkCircleOutline } from "react-icons/io";
 
 import Icon from "../assets/Icon-1.svg";
