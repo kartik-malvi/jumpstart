@@ -15,6 +15,7 @@ import SectionBreak from "./pages/SectionBreak";
 import MainLayout from "./layout/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import BlankLayout from "./layout/BlankLayout";
+import BookCounselling from "./pages/BookCounselling";
 
 const router = createBrowserRouter([
   {
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
       { path: "/signup", element: <Signup /> },
       { path: "/test", element: <Test /> },
       { path: "/pretest", element: <Pretest /> },
+      { path: "/bookcounselling", element: <BookCounselling /> },
       {
         path: "/dashboard",
         element: (
