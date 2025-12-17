@@ -17,6 +17,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import BlankLayout from "./layout/BlankLayout";
 import BookCounselling from "./pages/BookCounselling";
 import Payment from "./pages/Payment";
+import Careerdetail from "./pages/Careerdetail";
 
 const router = createBrowserRouter([
   {
@@ -29,7 +30,8 @@ const router = createBrowserRouter([
       { path: "/test", element: <Test /> },
       { path: "/pretest", element: <Pretest /> },
       { path: "/bookcounselling", element: <BookCounselling /> },
-        { path: "/payment", element: <Payment /> },
+      { path: "/payment", element: <Payment /> },
+      { path: "/careerdetail", element: <Careerdetail /> },
       {
         path: "/dashboard",
         element: (
