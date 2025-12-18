@@ -18,6 +18,7 @@ import BlankLayout from "./layout/BlankLayout";
 import BookCounselling from "./pages/BookCounselling";
 import Payment from "./pages/Payment";
 import Careerdetail from "./pages/Careerdetail";
+import Result from "./pages/Result";
 
 const router = createBrowserRouter([
   {
@@ -32,6 +33,7 @@ const router = createBrowserRouter([
       { path: "/bookcounselling", element: <BookCounselling /> },
       { path: "/payment", element: <Payment /> },
       { path: "/careerdetail", element: <Careerdetail /> },
+      { path: "/result", element: <Result /> },
       {
         path: "/dashboard",
         element: (

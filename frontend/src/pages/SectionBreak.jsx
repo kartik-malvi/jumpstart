@@ -5,7 +5,7 @@ import ClockIcon from "../assets/clock.svg";
 
 const SectionBreak = () => {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[#fafafa]">
 
       {/* TOP FULL WIDTH BAR */}
       <div className="w-full bg-white border-b border-[#E1E7EF]">

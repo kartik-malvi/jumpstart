@@ -16,7 +16,7 @@ const Careerdetail = () => {
   const [activeTab, setActiveTab] = useState("Overview");
 
   return (
-    <div className="min-h-screen p-6 px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 md:pt-10 pb-16 sm:pb-20 md:pb-[100px]">
+    <div className="min-h-screen bg-[#fafafa] p-6 px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 md:pt-10 pb-16 sm:pb-20 md:pb-[100px]">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

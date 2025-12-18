@@ -11,7 +11,7 @@ const Payment = () => {
   const [agree, setAgree] = useState(false);
 
   return (
-    <div className="min-h-screen px-4 py-10">
+    <div className="min-h-screen bg-[#fafafa] px-4 py-10">
       <div className="max-w-6xl mx-auto">
         {/* Page Header */}
         <div className="mb-8">
