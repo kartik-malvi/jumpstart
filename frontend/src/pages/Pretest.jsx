@@ -1,199 +1,125 @@
-import React, { Component } from "react";
-// import Header from "../components/Header";
-// import Footer from "../components/footer";
-import { IoIosCheckmarkCircleOutline } from "react-icons/io";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../api/api";
 
-import Icon from "../assets/Icon-1.svg";
-import Watch from "../assets/watch.svg";
-import Tech from "../assets/tech.svg";
-import Imp from "../assets/Imp.svg";
-export class Pretest extends Component {
-  render() {
+export default function Pretest() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [sections, setSections] = useState([]);
+  const [progress, setProgress] = useState({ completedSectionIds: [] });
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([api.get("/v1/user/package/current"), api.get("/v1/user/test-progress")])
+      .then(([pkgRes, progressRes]) => {
+        setSections(pkgRes?.data?.data?.sections || []);
+        setProgress(progressRes?.data?.data || { completedSectionIds: [] });
+      })
+      .catch((err) => {
+        setError(err?.response?.data?.msg || "Failed to load test setup");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const completedSet = useMemo(
+    () => new Set((progress.completedSectionIds || []).map((n) => Number(n))),
+    [progress.completedSectionIds]
+  );
+
+  const totalQuestions = sections.reduce((sum, s) => sum + (s.totalQuestions || 0), 0);
+
+  const handleStartSection = (sectionId) => {
+    navigate(`/livetest/${sectionId}`);
+  };
+
+  const handleSubmitAssessment = () => {
+    setSubmitting(true);
+    api
+      .post("/v1/user/test-submit", {})
+      .then(() => navigate("/test-completed", { replace: true }))
+      .catch((err) => setError(err?.response?.data?.msg || "Failed to submit assessment"))
+      .finally(() => setSubmitting(false));
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#fafafa] px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 md:pt-10 pb-16 sm:pb-20 md:pb-[100px] flex justify-center">
-        <div className="w-full max-w-4xl space-y-8">
-          {/* Heading */}
-          <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0F1729]">
-              Before You Begin
-            </h2>
-            <p className="mt-2 font-normal !text-base">
-              Please review these important instructions carefully
-            </p>
-          </div>
-
-          {/* Test Overview */}
-          <div className="bg-white shadow rounded-2xl p-8 border border-gray-100">
-            <div className="flex items-center gap-2 mb-6">
-              <img src={Icon} alt="icon" />
-              <h3 className="text-[18px] sm:text-[22px] md:text-[25.3px] font-semibold text-[#0F1729] font-inter">
-                Test Overview
-              </h3>
-            </div>
-
-            <div className="flex flex-col md:flex-row justify-between gap-6 sm:gap-8 md:gap-10">
-              <div className="space-y-6">
-                <div>
-                  <p className="!text-base">Total Sections</p>
-                  <div className="border-b border-gray-200 w-40 mt-1"></div>
-                </div>
-                <div>
-                  <p className="!text-base">Total Questions</p>
-                  <div className="border-b border-gray-200 w-40 mt-1"></div>
-                </div>
-                <div>
-                  <p className="!text-base">Total Duration</p>
-                  <div className="border-b border-gray-200 w-40 mt-1"></div>
-                </div>
-                <div>
-                  <p className="!text-base">Sections</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-4 sm:gap-6 md:gap-7 font-medium md:text-right">
-                <p className="!text-[#0F1729] !font-semibold !text-base">
-                  5 Sections
-                </p>
-                <p className="!text-[#0F1729] !font-semibold !text-base">
-                  500 Questions
-                </p>
-                <p className="!text-[#0F1729] !font-semibold !text-base">
-                  180 Minutes
-                </p>
-                <p className="!text-[#0F1729] !font-semibold !text-base">
-                  Personality, Intelligence, Interest, Aptitude, Emotional
-                  Quotient
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Timing & Progress */}
-          <div className="bg-white shadow rounded-2xl p-6 border border-gray-100 space-y-2">
-            <div className="flex items-center gap-2 mb-6">
-              <img src={Watch} alt="icon" />
-              <h3 className="text-[18px] sm:text-[22px] md:text-[25.3px] font-semibold text-[#0F1729] font-inter">
-                Timing & Progress
-              </h3>
-            </div>
-            <ul className="space-y-2 text-[#0F1729] text-sm font-inter">
-              <li className="flex items-center gap-2">
-                <span className="text-base sm:text-lg md:text-lg">
-                  <IoIosCheckmarkCircleOutline />
-                </span>
-                Each section is timed individually
-              </li>
-
-              <li className="flex items-center gap-2">
-                <span className="text-base sm:text-lg md:text-lg">
-                  <IoIosCheckmarkCircleOutline />
-                </span>
-                You can save and return later within 24 hours (one-time pause
-                allowed)
-              </li>
-
-              <li className="flex items-center gap-2">
-                <span className="text-base sm:text-lg md:text-lg">
-                  <IoIosCheckmarkCircleOutline />
-                </span>
-                Progress is automatically saved after each question
-              </li>
-
-              <li className="flex items-center gap-2">
-                <span className="text-base sm:text-lg md:text-lg">
-                  <IoIosCheckmarkCircleOutline />
-                </span>
-                Timer continues from where you left off when you resume
-              </li>
-            </ul>
-          </div>
-
-          {/* Technical Requirements */}
-          <div className="bg-white shadow rounded-2xl p-6 border border-gray-100 space-y-2">
-            <div className="flex items-center gap-2 mb-6">
-              <img src={Tech} alt="icon" />
-              <h3 className="text-[18px] sm:text-[22px] md:text-[25.3px] font-semibold text-[#0F1729] font-inter">
-                Technical Requirements
-              </h3>
-            </div>
-            <ul className="space-y-2 text-[#0F1729] text-sm font-inter">
-              <li className="flex items-center gap-2">
-                <span className="text-base sm:text-lg md:text-lg">
-                  <IoIosCheckmarkCircleOutline />
-                </span>
-                Stable internet connection (minimum 2 Mbps recommended)
-              </li>
-
-              <li className="flex items-center gap-2">
-                <span className="text-base sm:text-lg md:text-lg">
-                  <IoIosCheckmarkCircleOutline />
-                </span>
-                Updated browser: Chrome, Firefox, Safari, or Edge
-              </li>
-
-              <li className="flex items-center gap-2">
-                <span className="text-base sm:text-lg md:text-lg">
-                  <IoIosCheckmarkCircleOutline />
-                </span>
-                Desktop or laptop recommended (tablets and mobile supported)
-              </li>
-
-              <li className="flex items-center gap-2">
-                <span className="text-base sm:text-lg md:text-lg">
-                  <IoIosCheckmarkCircleOutline />
-                </span>
-                Disable pop-up blockers for this website
-              </li>
-            </ul>
-          </div>
-
-          {/* Important Rules */}
-          <div className="bg-white shadow rounded-2xl p-6 border border-gray-100 space-y-2">
-            <div className="flex items-center gap-2 mb-6">
-              <img src={Imp} alt="icon" />
-              <h3 className="text-[18px] sm:text-[22px] md:text-[25.3px] font-semibold text-[#0F1729] font-inter">
-                Important Rules
-              </h3>
-            </div>
-            <ul className="list-disc ml-6 text-[#0F1729] space-y-2 text-sm font-inter custom-list">
-              <li>Answer honestly – there are no right or wrong answers</li>
-              <li>Once a section is submitted, you cannot go back to it</li>
-              <li>Do not refresh the page during the test</li>
-              <li>Work in a quiet environment without distractions</li>
-              <li>
-                Your responses are confidential and used only for career
-                guidance
-              </li>
-            </ul>
-          </div>
-
-          {/* Checkboxes */}
-          <div className="bg-white shadow rounded-2xl p-6 border border-gray-100 space-y-4">
-            <label className="flex items-center gap-3 text-sm text-[#0F1729] font-inter cursor-pointer">
-              <input
-                type="checkbox"
-                className="appearance-none w-2 h-2 sm:w-4 sm:h-4 md:w-4 md:h-4 rounded-full border border-[#188B8B] checked:bg-[#188B8B] checked:border-[#188B8B] transition-colors duration-200"
-              />
-              I have checked my internet connection and browser compatibility
-            </label>
-
-            <label className="flex items-center gap-3 text-sm text-[#0F1729] font-inter cursor-pointer">
-              <input
-                type="checkbox"
-                className="appearance-none w-2 h-2 sm:w-4 sm:h-4 md:w-4 md:h-4 rounded-full border border-[#188B8B] checked:bg-[#188B8B] checked:border-[#188B8B] transition-colors duration-200"
-              />
-              I have read and understood all the instructions and rules
-            </label>
-          </div>
-
-          {/* Button */}
-          <button className="w-full py-3 bg-[#f7cc82] font-semibold rounded-xl hover:bg-yellow-600 transition text-[#0F1729] font-inter">
-            I'm Ready to Start
-          </button>
-        </div>
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+        <p className="text-[#65758B]">Loading assessment setup...</p>
       </div>
     );
   }
-}
 
-export default Pretest;
+  return (
+    <div className="min-h-screen bg-[#fafafa] px-4 sm:px-6 md:px-8 py-8 flex justify-center">
+      <div className="w-full max-w-5xl space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold text-[#0F1729]">Assessment Sections</h2>
+          <p className="mt-2 text-[#65758B]">
+            Select any section to start. You can complete sections in your preferred order.
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-[#65758B]">Total Sections</p>
+              <p className="text-xl font-semibold text-[#0F1729]">{sections.length}</p>
+            </div>
+            <div>
+              <p className="text-sm text-[#65758B]">Questions Loaded</p>
+              <p className="text-xl font-semibold text-[#0F1729]">{totalQuestions}</p>
+            </div>
+            <div>
+              <p className="text-sm text-[#65758B]">Completed Sections</p>
+              <p className="text-xl font-semibold text-[#0F1729]">{completedSet.size}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {sections.map((section) => {
+            const completed = completedSet.has(Number(section.sectionId));
+            return (
+              <div key={section.sectionId} className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-[#0F1729]">
+                    Section {section.sectionId}: {section.title}
+                  </h3>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      completed ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {completed ? "Completed" : "Pending"}
+                  </span>
+                </div>
+                <p className="text-sm text-[#65758B] mt-2">
+                  Duration: {section.durationMinutes || 20} mins • Questions: {section.totalQuestions || 0}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleStartSection(section.sectionId)}
+                  className="mt-4 w-full py-2.5 rounded-xl bg-[#188B8B] text-white font-semibold hover:bg-teal-700 transition"
+                >
+                  {completed ? "Review / Retake Section" : "Start Section"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+
+        <button
+          type="button"
+          onClick={handleSubmitAssessment}
+          disabled={submitting}
+          className="w-full py-3 rounded-xl bg-[#F59F0A] text-[#0F1729] font-semibold hover:bg-amber-500 disabled:opacity-60"
+        >
+          {submitting ? "Submitting..." : "Submit Final Assessment"}
+        </button>
+      </div>
+    </div>
+  );
+}

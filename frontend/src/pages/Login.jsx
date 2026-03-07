@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import logo from "../assets/logo.png";
 import Header from "../components/Header";
-import Footer from "../components/footer";
+import Footer from "../components/Footer";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 

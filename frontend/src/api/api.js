@@ -1,11 +1,9 @@
 import axios from "axios";
 
-// FINAL BASE PATH (Option A)
-const baseURL = "https://jumpstart-backend.alwaysdata.net/api/";
+const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// Create axios instance
 const api = axios.create({
-  baseURL: baseURL,
+  baseURL,
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",

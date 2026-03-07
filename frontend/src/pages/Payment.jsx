@@ -1,14 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { FaCheck } from "react-icons/fa";
 import upiIcon from "../assets/upi.svg";
 import creditIcon from "../assets/credit.svg";
 import netIcon from "../assets/net.svg";
 import walletIcon from "../assets/wallet.svg";
 import secure from "../assets/secure.svg";
 import lck from "../assets/lck.svg";
+import { GST_RATE } from "../data/testPackages";
+import api from "../api/api";
 
 const Payment = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [method, setMethod] = useState("upi");
   const [agree, setAgree] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+
+  const plan = location.state?.plan;
+
+  useEffect(() => {
+    if (!plan || !plan.id) {
+      navigate("/test", { replace: true });
+    }
+  }, [plan, navigate]);
+
+  const formatPrice = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
+  const subtotal = plan?.amount ?? 0;
+  const gstAmount = Math.round(subtotal * GST_RATE);
+  const total = subtotal + gstAmount;
+
+  const handleCompletePayment = () => {
+    if (!plan?.id) return;
+    api
+      .patch("/v1/user/package/select", { packageId: plan.id })
+      .then(() => setShowSuccessPopup(true))
+      .catch((err) => {
+        console.error("Select package failed", err);
+        alert(err?.response?.data?.msg || "Failed to activate package");
+      });
+  };
+
+  const handleSuccessOk = () => {
+    setShowSuccessPopup(false);
+    navigate("/Pretest", { replace: true });
+  };
+
+  if (!plan || !plan.id) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+        <p className="text-[#65758B]">Redirecting to packages...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#fafafa] px-4 py-10">
@@ -121,6 +166,7 @@ const Payment = () => {
               <div className="space-y-3">
                 {[{ id: "upi", label: "UPI (PhonePe, Google Pay, Paytm)", icon: upiIcon },{ id: "card", label: "Credit / Debit Card", icon: creditIcon },{ id: "net", label: "Net Banking", icon: netIcon },{ id: "wallet", label: "Wallet", icon: walletIcon }].map((item) => (
                   <button
+                    type="button"
                     key={item.id}
                     onClick={() => setMethod(item.id)}
                     className={`w-full h-[52px] rounded-2xl px-5 flex items-center gap-4 border transition text-sm ${
@@ -171,15 +217,28 @@ const Payment = () => {
               Order Summary
             </h3>
 
-            <div className="space-y-3 text-sm mt-2 font-inter" >
+            <div className="space-y-3 text-sm mt-4 font-inter">
               <div className="flex justify-between">
-                <span className="text-[#0F1729]">Premium Package</span>
-                <span className="text-[#0F1729] text-base font-semibold">₹2,499</span>
+                <span className="text-[#0F1729] font-medium">{plan.title}</span>
+                <span className="text-[#0F1729] text-base font-semibold">{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span className="text[#65758B]">GST (18%)</span>
-                <span>₹450</span>
+                <span className="text-[#65758B]">GST (18%)</span>
+                <span>{formatPrice(gstAmount)}</span>
               </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-[#E1E7EF]">
+              <p className="text-xs font-semibold text-[#0F1729] mb-2">Included in this package</p>
+              <ul className="space-y-1.5 text-xs text-[#65758B]">
+                {plan.features?.slice(0, 4).map((f, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <FaCheck className={`${plan.checkColor || "text-[#0B908E]"} mt-0.5 shrink-0`} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-slate-400 mt-2">{plan.duration}</p>
             </div>
 
             {/* Discount Code */}
@@ -192,7 +251,7 @@ const Payment = () => {
                   className="w-[100%] h-[42px] rounded-[14px] border border-[#E1E7EF] bg-[#FAFAFA] px-4 text-sm outline-none"
                   placeholder="Enter code"
                 />
-                <button className="h-[42px] px-5 rounded-[14px] border-2 border-[#188B8B] text-[#188B8B] text-sm font-medium">
+                <button type="button" className="h-[42px] px-5 rounded-[14px] border-2 border-[#188B8B] text-[#188B8B] text-sm font-medium">
                   Apply
                 </button>
               </div>
@@ -202,7 +261,7 @@ const Payment = () => {
 
             <div className="flex justify-between items-center mb-6 font-inter">
               <span className="font-semibold text-[#0F1729]">Total Amount</span>
-              <span className="text-2xl font-bold text-[#188B8B]">₹2,949</span>
+              <span className="text-2xl font-bold text-[#188B8B]">{formatPrice(total)}</span>
             </div>
 
             <label className="grid auto-cols-auto grid-flow-col items-start gap-3 text-sm mb-6 cursor-pointer select-none">
@@ -219,9 +278,9 @@ const Payment = () => {
             </label>
 
             <button
-            
+              type="button"
               disabled={!agree}
-              
+              onClick={handleCompletePayment}
               className={`w-full h-[48px] rounded-xl font-semibold transition flex items-center justify-center gap-1 ${
                 agree
                   ? "bg-[#F59F0A] text-[#0F1729]"
@@ -244,6 +303,36 @@ const Payment = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Success Popup - rendered in document.body so it always shows on top */}
+      {showSuccessPopup &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center p-4 bg-black/50"
+            style={{ zIndex: 99999 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payment-success-title"
+          >
+            <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-8 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
+                <FaCheck className="text-3xl text-emerald-600" />
+              </div>
+              <h3 id="payment-success-title" className="text-xl font-bold text-[#0F1729] mb-2">
+                Payment Successful
+              </h3>
+              <p className="text-sm text-[#65758B] mb-6">Your payment has been processed successfully.</p>
+              <button
+                type="button"
+                onClick={handleSuccessOk}
+                className="w-full h-12 rounded-xl bg-[#188B8B] text-white font-semibold hover:bg-teal-700 transition"
+              >
+                Continue to Pretest
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

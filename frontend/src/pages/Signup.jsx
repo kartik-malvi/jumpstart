@@ -2,11 +2,12 @@ import React, { useState, useEffect, useContext } from "react";
 import GoogleIcon from "../assets/Social-icon.png";
 import logo from "../assets/logo.png";
 import Header from "../components/Header";
-import Footer from "../components/footer";
+import Footer from "../components/Footer";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
-const basePath = "https://jumpstart-backend.alwaysdata.net/api/v1";
+const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const basePath = `${apiBase}/v1`;
 const GOOGLE_CLIENT_ID =
   "773594743314-9n0eb71lufvvh4utldar312r8meh2mji.apps.googleusercontent.com";
 

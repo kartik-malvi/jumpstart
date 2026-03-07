@@ -2,8 +2,8 @@ import { createContext, useState, useEffect } from "react";
 
 export const AuthContext = createContext();
 
-// BACKEND BASE URL
-const basePath = "https://jumpstart-backend.alwaysdata.net/api/v1";
+const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const basePath = `${apiBase}/v1`;
 
 // ----------------------------
 // SAFE GET FROM LOCAL STORAGE
@@ -120,6 +120,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
   };
 
+  const updateUser = (nextUser) => {
+    if (!nextUser) return;
+    setUser(nextUser);
+    localStorage.setItem("user", JSON.stringify(nextUser));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -127,6 +133,7 @@ export const AuthProvider = ({ children }) => {
         token,
         login,
         loginWithGoogle, // <-- Added Google Login
+        updateUser,
         logout,
         loading,
       }}
