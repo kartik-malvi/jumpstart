@@ -2,13 +2,11 @@ import React, { useState, useEffect, useContext } from "react";
 import GoogleIcon from "../assets/Social-icon.png";
 import logo from "../assets/logo.png";
 import Header from "../components/Header";
-import Footer from "../components/footer";
+import Footer from "../components/Footer";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-
-const basePath = "https://jumpstart-backend.alwaysdata.net/api/v1";
-const GOOGLE_CLIENT_ID =
-  "773594743314-9n0eb71lufvvh4utldar312r8meh2mji.apps.googleusercontent.com";
+import api from "../api/api";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -49,6 +47,11 @@ export default function Signup() {
   // LOAD GOOGLE SCRIPT + BUTTON
   // ------------------------------------------------
   useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      setMsg("Google signup is not configured");
+      return;
+    }
+
     const loadScript = () =>
       new Promise((resolve) => {
         if (window.google && window.google.accounts) {
@@ -89,16 +92,11 @@ export default function Signup() {
     setMsg("");
 
     try {
-      const res = await fetch(`${basePath}/user/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
+      const res = await api.post("/v1/user/auth/register", form);
+      const data = res?.data || {};
       console.log("REGISTER RESPONSE:", data);
 
-      if (res.ok) {
+      if (data.success) {
         setMsg("Signup successful!");
         setTimeout(() => navigate("/login"), 500);
       } else {
@@ -106,7 +104,7 @@ export default function Signup() {
       }
     } catch (error) {
       console.error("SIGNUP ERROR:", error);
-      setMsg("Something went wrong");
+      setMsg(error?.response?.data?.message || error?.response?.data?.msg || "Something went wrong");
     }
 
     setLoading(false);

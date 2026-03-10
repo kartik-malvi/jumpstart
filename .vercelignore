@@ -1,0 +1,8 @@
+backend/
+frontend/node_modules/
+frontend/dist/
+deploy-frontend.sh
+jumpstart-launchpreview.zip
+project-backup.zip
+complete-answer-key-500q.pdf
+complete-aptitude-test-500q.pdf

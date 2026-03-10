@@ -1,9 +1,7 @@
 import { createContext, useState, useEffect } from "react";
+import api from "../api/api";
 
 export const AuthContext = createContext();
-
-// BACKEND BASE URL
-const basePath = "https://jumpstart-backend.alwaysdata.net/api/v1";
 
 // ----------------------------
 // SAFE GET FROM LOCAL STORAGE
@@ -48,65 +46,65 @@ export const AuthProvider = ({ children }) => {
   // 1️⃣ LOGIN WITH EMAIL + PASSWORD
   // ------------------------------------
   const login = async ({ email, password }) => {
-    const res = await fetch(`${basePath}/user/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const res = await api.post("/v1/user/auth/login", { email, password });
+      const data = res?.data || {};
+      console.log("LOGIN RESPONSE:", data);
 
-    const data = await res.json();
-    console.log("LOGIN RESPONSE:", data);
+      if (!data.success) {
+        throw new Error(data.msg || "Login failed");
+      }
 
-    if (!data.success) {
-      throw new Error(data.msg || "Login failed");
+      const userObj = data.data.user;
+      const tokenStr = data.data.auth_token;
+
+      if (!tokenStr) throw new Error("No token received");
+
+      setUser(userObj);
+      setToken(tokenStr);
+
+      localStorage.setItem("user", JSON.stringify(userObj));
+      localStorage.setItem("token", tokenStr);
+
+      return data;
+    } catch (err) {
+      throw new Error(err?.response?.data?.msg || err?.response?.data?.message || err.message || "Login failed");
     }
-
-    const userObj = data.data.user;
-    const tokenStr = data.data.auth_token;
-
-    if (!tokenStr) throw new Error("No token received");
-
-    setUser(userObj);
-    setToken(tokenStr);
-
-    localStorage.setItem("user", JSON.stringify(userObj));
-    localStorage.setItem("token", tokenStr);
-
-    return data;
   };
 
   // ------------------------------------
   // 2️⃣ LOGIN WITH GOOGLE (SOCIAL LOGIN)
   // ------------------------------------
   const loginWithGoogle = async (google_id_token) => {
-    const res = await fetch(`${basePath}/user/auth/social-login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const res = await api.post("/v1/user/auth/social-login", {
         provider: "google",
         token: google_id_token,
-      }),
-    });
+      });
+      const data = res?.data || {};
+      console.log("GOOGLE LOGIN RESPONSE:", data);
 
-    const data = await res.json();
-    console.log("GOOGLE LOGIN RESPONSE:", data);
+      if (!data.success) {
+        throw new Error(data.msg || "Google login failed");
+      }
 
-    if (!data.success) {
-      throw new Error(data.msg || "Google login failed");
+      const userObj = data.data?.user;
+      const tokenStr = data.data?.auth_token;
+
+      if (!tokenStr) throw new Error("No token received");
+
+      setUser(userObj);
+      setToken(tokenStr);
+
+      localStorage.setItem("user", JSON.stringify(userObj));
+      localStorage.setItem("token", tokenStr);
+
+      return data;
+    } catch (err) {
+      throw new Error(
+        err?.response?.data?.msg || err?.response?.data?.message || err.message || "Google login failed"
+      );
     }
-
-    const userObj = data.data?.user;
-    const tokenStr = data.data?.auth_token;
-
-    if (!tokenStr) throw new Error("No token received");
-
-    setUser(userObj);
-    setToken(tokenStr);
-
-    localStorage.setItem("user", JSON.stringify(userObj));
-    localStorage.setItem("token", tokenStr);
-
-    return data;
   };
 
   // ------------------------------------

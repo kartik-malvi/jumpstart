@@ -1,0 +1,629 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Bell, Download, Mail, X } from 'lucide-react';
+import api from '../../api/api';
+import DEFAULT_PACKAGE, {
+  getAnswerKeyTemplateCsv,
+  getQuestionsTemplateCsv,
+  getMailListTemplateCsv,
+} from '../../utils/testPackageStore';
+import { usePackageData } from '../../context/PackageContext';
+
+const StatusBadge = ({ status }) => (
+  <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-teal-800 text-white uppercase tracking-wider">
+    {status}
+  </span>
+);
+
+const SettingsTab = ({ label, active, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-2 px-8 py-2 rounded-lg text-sm font-bold transition-all ${
+      active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+const SectionHeader = ({ title, subtitle, actionLabel, onAction, secondaryLabel, secondaryAction }) => (
+  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div className="flex flex-col">
+      <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+      <p className="text-gray-400 text-sm mt-0.5">{subtitle}</p>
+    </div>
+    <div className="flex items-center gap-2">
+      {secondaryLabel && secondaryAction && (
+        <button
+          onClick={secondaryAction}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm border border-[#f59e0b] text-[#f59e0b] bg-white hover:bg-[#fef6eb]"
+        >
+          {secondaryLabel}
+        </button>
+      )}
+      <button
+        onClick={onAction}
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm bg-[#f59e0b] hover:bg-[#d97706] text-white"
+      >
+        {actionLabel}
+      </button>
+    </div>
+  </div>
+);
+
+const parseSheetRows = (input) => {
+  const lines = input.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const delimiter = lines[0].includes('\t') ? '\t' : ',';
+  const rows = lines.map((line) => line.split(delimiter).map((cell) => cell.trim()));
+  const first = rows[0].map((c) => c.toLowerCase());
+  const hasHeader = first.includes('section') || first.includes('question');
+  const body = hasHeader ? rows.slice(1) : rows;
+
+  return body
+    .map((cols) => ({
+      sectionName: cols[0] || 'Section 1',
+      question: cols[1] || '',
+      questionType: cols[2] || 'likert5',
+      dimension: cols[3] || '',
+      reverseScored: String(cols[4]).toLowerCase() === 'true',
+      correctOption: Number(cols[5]) || null,
+      marks: Number(cols[6]) || 1,
+      durationMinutes: Number(cols[7]) || null,
+    }))
+    .filter((r) => r.question);
+};
+
+const provideNewPackageForm = () => ({
+  name: '',
+  price: '',
+  priceLabel: '',
+  features: '',
+  description: '',
+  questionPdf: DEFAULT_PACKAGE.questionPdf,
+  answerKeyPdf: DEFAULT_PACKAGE.answerKeyPdf,
+  sections: [
+    {
+      id: `section-${Date.now()}`,
+      name: 'Section 1',
+      durationMinutes: 20,
+      questions: [
+        {
+          text: '',
+          questionType: 'likert5',
+          dimension: '',
+          reverseScored: false,
+          correctOption: null,
+          marks: 1,
+        },
+      ],
+    },
+  ],
+  status: 'Draft',
+});
+
+const Settings = () => {
+  const {
+    coupons: contextCoupons,
+    mailLists,
+    activePackage: contextActivePackage,
+    refresh,
+  } = usePackageData();
+  const [activeTab, setActiveTab] = useState('pricing');
+  const [coupons, setCoupons] = useState([]);
+  const [mailListState, setMailListState] = useState([]);
+  const [couponForm, setCouponForm] = useState({ code: '', discount: '', validUntil: '' });
+  const [mailListInput, setMailListInput] = useState('');
+  const latestMailList = mailListState[0];
+  const latestMailListCount = latestMailList?.entries?.length || 0;
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
+  const [sheetRowsInput, setSheetRowsInput] = useState('');
+  const activePackage = contextActivePackage || DEFAULT_PACKAGE;
+  const [packageForm, setPackageForm] = useState(activePackage);
+  const [packageModalMode, setPackageModalMode] = useState('edit');
+
+  useEffect(() => {
+    setCoupons(contextCoupons);
+  }, [contextCoupons]);
+
+  useEffect(() => {
+    setMailListState(mailLists);
+  }, [mailLists]);
+
+  useEffect(() => {
+    setPackageForm(activePackage);
+  }, [activePackage]);
+
+  const openCreatePackageModal = () => {
+    setPackageModalMode('create');
+    setPackageForm(provideNewPackageForm());
+    setSheetRowsInput('');
+    setIsPackageModalOpen(true);
+  };
+
+  const openEditPackageModal = () => {
+    setPackageModalMode('edit');
+    setPackageForm(activePackage);
+    setSheetRowsInput('');
+    setIsPackageModalOpen(true);
+  };
+
+  const closePackageModal = () => setIsPackageModalOpen(false);
+
+  const updatePackageField = (key, value) => {
+    setPackageForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const addSection = () => {
+    setPackageForm((prev) => ({
+      ...prev,
+      sections: [...(prev.sections || []), { id: Date.now(), name: `Section ${(prev.sections || []).length + 1}`, durationMinutes: 20, questions: [{ text: '', questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 }] }],
+    }));
+  };
+
+  const removeSection = (sectionId) => {
+    setPackageForm((prev) => ({
+      ...prev,
+      sections: (prev.sections || []).filter((s) => s.id !== sectionId),
+    }));
+  };
+
+  const updateSection = (sectionId, key, value) => {
+    setPackageForm((prev) => ({
+      ...prev,
+      sections: (prev.sections || []).map((s) => (s.id === sectionId ? { ...s, [key]: value } : s)),
+    }));
+  };
+
+  const addQuestion = (sectionId) => {
+    setPackageForm((prev) => ({
+      ...prev,
+      sections: (prev.sections || []).map((s) =>
+        s.id === sectionId ? { ...s, questions: [...(s.questions || []), { text: '', questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 }] } : s
+      ),
+    }));
+  };
+
+  const updateQuestion = (sectionId, qIdx, key, value) => {
+    setPackageForm((prev) => ({
+      ...prev,
+      sections: (prev.sections || []).map((s) => {
+        if (s.id !== sectionId) return s;
+        const next = [...(s.questions || [])];
+        const existing = typeof next[qIdx] === 'string'
+          ? { text: next[qIdx], questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 }
+          : (next[qIdx] || { text: '', questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 });
+        next[qIdx] = { ...existing, [key]: value };
+        return { ...s, questions: next };
+      }),
+    }));
+  };
+
+  const removeQuestion = (sectionId, qIdx) => {
+    setPackageForm((prev) => ({
+      ...prev,
+      sections: (prev.sections || []).map((s) => {
+        if (s.id !== sectionId) return s;
+        const next = (s.questions || []).filter((_, index) => index !== qIdx);
+        return { ...s, questions: next.length ? next : [{ text: '', questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 }] };
+      }),
+    }));
+  };
+
+  const handleImportFromSheets = () => {
+    const rows = parseSheetRows(sheetRowsInput);
+    if (rows.length === 0) return;
+
+    setPackageForm((prev) => {
+      const sections = [...(prev.sections || [])];
+      rows.forEach((row) => {
+        const idx = sections.findIndex((s) => s.name.toLowerCase() === row.sectionName.toLowerCase());
+        if (idx === -1) {
+          sections.push({
+            id: Date.now() + Math.random(),
+            name: row.sectionName,
+            durationMinutes: row.durationMinutes || 20,
+            questions: [{
+              text: row.question,
+              questionType: row.questionType || 'likert5',
+              dimension: row.dimension || '',
+              reverseScored: !!row.reverseScored,
+              correctOption: row.correctOption,
+              marks: row.marks || 1,
+            }],
+          });
+        } else {
+          const existingQuestions = (sections[idx].questions || []).map((q) =>
+            typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 } : q
+          );
+          sections[idx] = {
+            ...sections[idx],
+            durationMinutes: row.durationMinutes || sections[idx].durationMinutes || 20,
+            questions: [...existingQuestions.filter((q) => q.text), {
+              text: row.question,
+              questionType: row.questionType || 'likert5',
+              dimension: row.dimension || '',
+              reverseScored: !!row.reverseScored,
+              correctOption: row.correctOption,
+              marks: row.marks || 1,
+            }],
+          };
+        }
+      });
+      return { ...prev, sections };
+    });
+  };
+
+  const handleDownloadTemplate = () => {
+    const blob = new Blob([getQuestionsTemplateCsv()], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'questions_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadAnswerKeyTemplate = () => {
+    const blob = new Blob([getAnswerKeyTemplateCsv()], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'answer_key_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadMailTemplate = () => {
+    const blob = new Blob([getMailListTemplateCsv()], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mail_list_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSavePackage = async (e) => {
+    e.preventDefault();
+    const cleanSections = (packageForm.sections || [])
+      .map((s) => ({
+        ...s,
+        name: (s.name || '').trim(),
+        questions: (s.questions || [])
+          .map((q) => (typeof q === 'string' ? { text: q.trim(), questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 } : {
+            text: (q.text || '').trim(),
+            questionType: q.questionType || 'likert5',
+            dimension: q.dimension || '',
+            reverseScored: !!q.reverseScored,
+            correctOption: q.correctOption != null ? Number(q.correctOption) : null,
+            marks: q.marks != null ? Number(q.marks) : 1,
+          }))
+          .filter((q) => q.text),
+      }))
+      .filter((s) => s.name && s.questions.length);
+
+    if (!packageForm.name?.trim() || !packageForm.price?.trim() || cleanSections.length === 0) return;
+
+    const totalQuestions = cleanSections.reduce((sum, s) => sum + s.questions.length, 0);
+    const numericPrice = Number((packageForm.price || "").replace(/[^\d.]/g, "")) || 0;
+    const payload = {
+      id: packageModalMode === 'edit' ? packageForm._id || packageForm.id : undefined,
+      name: packageForm.name.trim(),
+      priceLabel: packageForm.price?.trim(),
+      price: numericPrice,
+      displayPrice: packageForm.price?.trim(),
+      features: packageForm.features?.trim() || `${cleanSections.length} sections, ${totalQuestions} questions`,
+      description: packageForm.description || '',
+      pdfQuestion: packageForm.questionPdf || DEFAULT_PACKAGE.questionPdf,
+      answerKeyPdf: packageForm.answerKeyPdf || DEFAULT_PACKAGE.answerKeyPdf,
+      sections: cleanSections,
+      isActive: packageModalMode === 'edit',
+      status: packageModalMode === 'edit' ? 'Active' : 'Draft',
+    };
+
+    try {
+      await api.post("/v1/admin/packages", payload);
+      setIsPackageModalOpen(false);
+      setSheetRowsInput('');
+      refresh();
+    } catch (err) {
+      console.error("Failed to save package", err);
+    }
+  };
+
+  const resetCouponForm = () => setCouponForm({ code: '', discount: '', validUntil: '' });
+
+  const handleCouponChange = (key, value) => {
+    setCouponForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleAddCoupon = async () => {
+    if (!couponForm.code.trim() || !couponForm.discount.trim() || !couponForm.validUntil.trim()) return;
+    const code = couponForm.code.trim().toUpperCase();
+    const discountValue = Number(couponForm.discount.replace(/[^\d.]/g, "")) || 0;
+    if (discountValue <= 0) return;
+    const payload = {
+      code,
+      discountType: couponForm.discount.includes("%") ? "percentage" : "fixed",
+      value: discountValue,
+      validUntil: couponForm.validUntil,
+    };
+    try {
+      await api.post("/v1/admin/coupons", payload);
+      resetCouponForm();
+      refresh();
+    } catch (err) {
+      console.error("Failed to add coupon", err);
+    }
+  };
+
+  const handleRemoveCoupon = async (id) => {
+    try {
+      await api.delete(`/v1/admin/coupons/${id}`);
+      refresh();
+    } catch (err) {
+      console.error("Failed to delete coupon", err);
+    }
+  };
+
+  const handleImportMailList = async () => {
+    const lines = mailListInput.split("\n").map((l) => l.trim()).filter(Boolean);
+    const entries = lines.map((line) => {
+      const [name, email] = line.split(",").map((x) => x.trim());
+      return { name: name || email || "Recipient", email };
+    }).filter((item) => item.email);
+    if (!entries.length) return;
+    try {
+      await api.post("/v1/admin/mail-lists", { entries });
+      setMailListInput("");
+      refresh();
+    } catch (err) {
+      console.error("Failed to upload mail list", err);
+    }
+  };
+
+  return (
+    <div className="max-w-[1440px] mx-auto font-['Inter'] animate-in fade-in duration-500 p-6 md:p-8 w-full flex flex-col gap-8">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">System Settings</h1>
+        <p className="text-gray-400 text-sm font-medium">Configure platform settings and preferences</p>
+      </div>
+
+      <div className="bg-[#f1f5f9] p-1.5 rounded-xl flex self-start md:self-center">
+        <SettingsTab label="Pricing" active={activeTab === 'pricing'} onClick={() => setActiveTab('pricing')} />
+        <SettingsTab label="Email Templates" active={activeTab === 'emails'} onClick={() => setActiveTab('emails')} />
+        <SettingsTab label="Notifications" active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
+      </div>
+
+      {activeTab === 'pricing' && (
+        <div className="flex flex-col gap-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <SectionHeader
+              title="Test Packages"
+              subtitle="One active package with section-wise questions"
+              actionLabel="Edit Package"
+              onAction={openEditPackageModal}
+              secondaryLabel="Create Package"
+              secondaryAction={openCreatePackageModal}
+            />
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-50">
+                    <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Package Name</th>
+                    <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Features</th>
+                    <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center">Price</th>
+                    <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center">Status</th>
+                    <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  <tr className="hover:bg-gray-50/50 transition-colors group">
+                    <td className="py-6 text-sm font-bold text-gray-900">{activePackage?.name}</td>
+                    <td className="py-6 text-sm text-gray-500 font-medium">{activePackage?.features}</td>
+                    <td className="py-6 text-center text-sm font-extrabold text-gray-900">
+                      {activePackage?.priceLabel || activePackage?.displayPrice || activePackage?.price}
+                    </td>
+                    <td className="py-6 text-center"><StatusBadge status={activePackage?.status || 'Active'} /></td>
+                    <td className="py-6 text-right">
+                      <button onClick={openEditPackageModal} className="text-xs font-black text-gray-800 hover:text-[#14b8a6] uppercase tracking-wider transition-colors">Edit</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Coupon Codes</h3>
+                <p className="text-sm text-gray-500">Create codes that customers can apply at checkout.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input value={couponForm.code} onChange={(e) => handleCouponChange('code', e.target.value)} placeholder="Code" className="px-3 py-2 border rounded-lg text-sm border-gray-200 focus:ring-2 focus:ring-teal-100" />
+              <input value={couponForm.discount} onChange={(e) => handleCouponChange('discount', e.target.value)} placeholder="Discount (50% or ₹200)" className="px-3 py-2 border rounded-lg text-sm border-gray-200 focus:ring-2 focus:ring-teal-100" />
+              <input type="date" value={couponForm.validUntil} onChange={(e) => handleCouponChange('validUntil', e.target.value)} className="px-3 py-2 border rounded-lg text-sm border-gray-200 focus:ring-2 focus:ring-teal-100" />
+            </div>
+            <div className="flex justify-end">
+              <button type="button" onClick={handleAddCoupon} className="px-4 py-2 rounded-xl bg-[#14b8a6] text-white text-sm font-semibold hover:bg-teal-700 transition">Add Coupon</button>
+            </div>
+            <div className="space-y-3">
+              <label className="text-xs font-semibold uppercase text-gray-500">Mail list CSV (name,email)</label>
+              <textarea
+                value={mailListInput}
+                onChange={(e) => setMailListInput(e.target.value)}
+                rows={3}
+                placeholder="John Doe,john@example.com"
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100"
+              />
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleImportMailList} className="px-4 py-2 rounded-xl border border-[#14b8a6] text-[#14b8a6] text-sm font-semibold hover:bg-teal-50">Upload Mail List</button>
+                <span className="text-xs text-gray-500">
+                  {latestMailListCount} email(s) ready · {latestMailList?.label || "Latest upload"}
+                </span>
+                <button type="button" onClick={handleDownloadMailTemplate} className="px-3 py-1 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50">Download Mail Template</button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-50">
+                    <th className="py-3 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Code</th>
+                    <th className="py-3 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center">Discount</th>
+                    <th className="py-3 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center">Valid Until</th>
+                    <th className="py-3 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {coupons.map((coupon) => (
+                    <tr key={coupon.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <td className="py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-teal-50 text-[#14b8a6] px-3 py-1 rounded-md text-xs font-extrabold tracking-wider border border-teal-100 uppercase">{coupon.code}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (navigator.clipboard) {
+                                await navigator.clipboard.writeText(coupon.code);
+                              }
+                            }}
+                            className="text-xs font-semibold text-[#0B908E] hover:text-[#0F766E]"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-4 text-center text-sm font-extrabold text-gray-900">{coupon.discount}</td>
+                      <td className="py-4 text-center text-sm font-medium text-gray-500">{coupon.validUntil}</td>
+                      <td className="py-4 text-right">
+                        <button type="button" onClick={() => handleRemoveCoupon(coupon.id)} className="text-xs font-semibold text-rose-500 hover:text-rose-700">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'emails' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center flex flex-col items-center gap-4">
+          <div className="p-4 bg-gray-50 rounded-full text-gray-300"><Mail size={40} /></div>
+          <h3 className="text-xl font-bold text-gray-900">Email Templates Management</h3>
+          <p className="text-gray-400 max-w-md">Configure automated emails sent to users after test completions, registrations, and payment successes.</p>
+        </div>
+      )}
+
+      {activeTab === 'notifications' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center flex flex-col items-center gap-4">
+          <div className="p-4 bg-gray-50 rounded-full text-gray-300"><Bell size={40} /></div>
+          <h3 className="text-xl font-bold text-gray-900">Push & In-App Notifications</h3>
+          <p className="text-gray-400 max-w-md">Set rules for triggers that notify administrators and users about critical events on the platform.</p>
+        </div>
+      )}
+
+      {isPackageModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-xl border border-gray-100 p-6 relative">
+            <button
+              type="button"
+              onClick={closePackageModal}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-700"
+            >
+              <X size={18} />
+            </button>
+            <h3 className="text-xl font-bold text-gray-900">Edit Package</h3>
+            <p className="text-sm text-gray-400 mt-1">Upload section questions from Google Sheets and keep one active package.</p>
+
+            <form className="mt-6 space-y-5" onSubmit={handleSavePackage}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Package Name</label>
+                  <input value={packageForm.name || ''} onChange={(e) => updatePackageField('name', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Price</label>
+                  <input value={packageForm.price || ''} onChange={(e) => updatePackageField('price', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" />
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-bold text-gray-800">Google Sheets Import</h4>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={handleDownloadTemplate} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50"><Download size={14} /> Questions Template</button>
+                    <button type="button" onClick={handleDownloadAnswerKeyTemplate} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50"><Download size={14} /> Answer Key Template</button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Columns: `section`, `question`, `questionType`, `dimension`, `reverseScored`, `correctOption`, `marks`, `durationMinutes(optional)`</p>
+                <textarea value={sheetRowsInput} onChange={(e) => setSheetRowsInput(e.target.value)} rows={4} className="mt-3 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" placeholder={'Section 1\tI am outgoing\tlikert5\tExtraversion\tfalse\t\t1\t25\nSection 1\tI keep options open\tlikert5\tConscientiousness\ttrue\t\t1\t25\nSection 1\tI start conversations easily\thspq_abc\tWarmth\tfalse\t\t1\t25'} />
+                <button type="button" onClick={handleImportFromSheets} className="mt-3 px-4 py-2 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-sm font-semibold hover:bg-teal-50">Import Rows</button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-gray-800">Sections & Questions</h4>
+                  <button type="button" onClick={addSection} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#f59e0b] text-white hover:bg-[#d97706]">+ Add Section</button>
+                </div>
+
+                {(packageForm.sections || []).map((section) => (
+                  <div key={section.id} className="border border-gray-200 rounded-xl p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Section Name</label>
+                        <input value={section.name || ''} onChange={(e) => updateSection(section.id, 'name', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Duration (min)</label>
+                        <input type="number" min="1" value={section.durationMinutes || 20} onChange={(e) => updateSection(section.id, 'durationMinutes', Number(e.target.value) || 20)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(section.questions || []).map((q, qIdx) => {
+                        const question = typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 } : q;
+                        return (
+                        <div key={`${section.id}-${qIdx}`} className="grid grid-cols-1 md:grid-cols-6 gap-2">
+                          <input value={question.text || ''} onChange={(e) => updateQuestion(section.id, qIdx, 'text', e.target.value)} className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" placeholder={`Question ${qIdx + 1}`} />
+                          <select value={question.questionType || 'likert5'} onChange={(e) => updateQuestion(section.id, qIdx, 'questionType', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100">
+                            <option value="likert5">Likert 1-5</option>
+                            <option value="hspq_abc">HSPQ A/B/C</option>
+                            <option value="objective">Objective (Answer Key)</option>
+                          </select>
+                          <input value={question.dimension || ''} onChange={(e) => updateQuestion(section.id, qIdx, 'dimension', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100" placeholder="Dimension" />
+                          <label className="inline-flex items-center gap-2 px-2 py-2 rounded-lg border border-gray-200 text-xs">
+                            <input type="checkbox" checked={!!question.reverseScored} onChange={(e) => updateQuestion(section.id, qIdx, 'reverseScored', e.target.checked)} />
+                            Reverse
+                          </label>
+                          <input type="number" min="1" max="5" value={question.correctOption ?? ''} onChange={(e) => updateQuestion(section.id, qIdx, 'correctOption', e.target.value ? Number(e.target.value) : null)} className="w-20 px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100" placeholder="Ans" />
+                          <input type="number" min="1" value={question.marks ?? 1} onChange={(e) => updateQuestion(section.id, qIdx, 'marks', Number(e.target.value) || 1)} className="w-20 px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100" placeholder="Marks" />
+                          <button type="button" onClick={() => removeQuestion(section.id, qIdx)} className="px-2.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50">Remove</button>
+                        </div>
+                      )})}
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <button type="button" onClick={() => addQuestion(section.id)} className="px-3 py-1.5 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50">+ Add Question</button>
+                      <button type="button" onClick={() => removeSection(section.id)} className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-50" disabled={(packageForm.sections || []).length <= 1}>Remove Section</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onClick={closePackageModal} className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-[#f59e0b] text-white text-sm font-semibold hover:bg-[#d97706]">Save Package</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Settings;

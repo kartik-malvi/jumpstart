@@ -1,450 +1,382 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import api from "../api/api";
 import downloadIcon from "../assets/down.svg";
-import ShareIcon from "../assets/share.svg";
-import CompletedIcon from "../assets/completed.svg";
-import Carrericon from "../assets/carrericon.svg";
-import SkillIcon from "../assets/skillicon.svg";
-import CircleIcon from "../assets/circleicon.svg";
-import BulbIcon from "../assets/buldicon.svg";
+import printIcon from "../assets/prnt.svg";
+import prsonIcon from "../assets/prson.svg";
+import categIcon from "../assets/categ.svg";
+import fitIcon from "../assets/fit.svg";
 import SchduleIcon from "../assets/schdule.svg";
+import { SECTIONS } from "../data/livetestQuestions";
+
+const TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "strengths", label: "Strengths" },
+  { id: "interests", label: "Interests" },
+  { id: "career-paths", label: "Career Paths" },
+  { id: "next-steps", label: "Next Steps" },
+];
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+};
+
+const getReadinessLabel = (score) => {
+  if (score == null) return "Complete assessment";
+  if (score >= 80) return "Excellent career readiness";
+  if (score >= 60) return "Good career readiness";
+  if (score >= 40) return "Moderate readiness";
+  return "Keep building skills";
+};
 
 const Result = () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
+  const [data, setData] = useState({
+    hasResults: false,
+    overallScore: null,
+    overallPercentile: "",
+    completedTestsCount: 0,
+    totalTestsCount: 0,
+    careerPathwaysCount: 0,
+    testResults: [],
+    strengths: [],
+    careerRecommendations: [],
+    personalityType: null,
+  });
+
+  useEffect(() => {
+    api
+      .get("/v1/user/results")
+      .then((res) => {
+        const d = res?.data?.data;
+        if (d) setData(d);
+      })
+      .catch((err) => {
+        setError(err.response?.data?.msg || "Failed to load results");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-6">
+        <p className="text-[#65758B]">Loading your results...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-6">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Link to="/dashboard" className="text-[#188B8B] font-medium hover:underline">Back to Dashboard</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const hasAnyContent =
+    data.hasResults ||
+    (data.testResults && data.testResults.length > 0) ||
+    (data.strengths && data.strengths.length > 0) ||
+    (data.careerRecommendations && data.careerRecommendations.length > 0) ||
+    (data.personalityType && data.personalityType.code);
+
+  if (!hasAnyContent) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] p-6 px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 md:pt-10 pb-16">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#0F1729] mb-2">Your Career Profile</h2>
+          <p className="text-[#65758B] mb-6">Complete your aptitude tests to see your personalized results here.</p>
+          <Link
+            to="/test"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#188B8B] text-white rounded-[14px] font-semibold hover:bg-teal-700"
+          >
+            Browse Test Packages
+          </Link>
+          <p className="mt-6 text-sm text-[#65758B]">
+            Already have an account? <Link to="/dashboard" className="text-[#188B8B] font-medium hover:underline">Go to Dashboard</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const personality = data.personalityType || {};
+  const topCareer = (data.careerRecommendations || [])[0];
+  const defaultTraitNames = ["Analytical Thinking", "Creativity", "Leadership", "Communication"];
+  const defaultTraitValues = [92, 78, 85, 80];
+  const personalityTraits = defaultTraitNames.map((name, i) => {
+    const s = data.strengths && data.strengths[i];
+    return { name: (s && s.name) || name, value: (s && s.value != null) ? s.value : defaultTraitValues[i] };
+  });
+  const sectionResults = SECTIONS.map((sec) => {
+    const tr = (data.testResults || []).find((t) => t.sectionId === sec.id || t.sectionName === sec.title || (t.testName && t.testName.includes(sec.title)));
+    return {
+      ...sec,
+      score: tr?.score ?? null,
+      maxScore: tr?.maxScore ?? 100,
+      completedAt: tr?.completedAt,
+    };
+  });
+
+  const handlePrint = () => window.print();
+  const handleDownloadPdf = () => {
+    window.print();
+  };
+
   return (
-    <div className="min-h-screen bg-[#fafafa] p-6 px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 md:pt-10 pb-16 sm:pb-20 md:pb-[100px]">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+    <div className="min-h-screen bg-[#fafafa] pb-16 sm:pb-20">
+      {/* Top banner */}
+      <div className="w-full bg-[#E8F4F8] border-b border-[#E1E7EF]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2">
+          <p className="text-sm font-medium text-[#0F1729]">Detailed career report</p>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-10">
+        {/* Title + actions */}
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
           <div>
-            <h2 className="text-3xl lg:text-4xl font-bold text-[#0F1729]">
-              Your Career Profile
-            </h2>
-            <p className="!text-base text-[#65758B] mt-1">
-              Comprehensive analysis based on your test results
-            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#0F1729]">Your Detailed Career Report</h1>
+            <p className="text-[#65758B] mt-1 text-sm sm:text-base">Comprehensive analysis of your career aptitude assessment.</p>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium font-inter text-xs sm:text-sm border-2 border-[#188B8B] text-[#188B8B] rounded-[14px] hover:bg-teal-50">
-              <img src={downloadIcon} alt="DownloadIcon" />
-              <span>Download PDF</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#0F1729] bg-[#E8F4F8] border border-[#188B8B]/30 rounded-lg hover:bg-[#D4EDF0]"
+            >
+              <img src={printIcon} alt="Print" className="w-4 h-4" />
+              Print
             </button>
-            <button className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium font-inter text-xs sm:text-sm border-2 border-[#188B8B] text-[#188B8B] rounded-[14px] hover:bg-teal-50">
-              <img src={ShareIcon} alt="ShareIcon" />
-              <span>Share</span>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-[#F59F0A] hover:bg-[#D97706] rounded-lg"
+            >
+              <img src={downloadIcon} alt="Download" className="w-4 h-4" />
+              Download PDF
             </button>
           </div>
         </div>
 
-        {/* Stats Card */}
-        <div
-          className=" bg-gradient-to-br from-[rgba(24,139,139,0.05)] via-[rgba(250,250,250,1)] to-[rgba(11,101,101,0.05)] rounded-2xl p-4 sm:p-6 border-2 border-[#E1E7EF] shadow-sm mb-4 sm:mb-6"
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-            <div className="text-center py-2">
-              <h3 className="text-4xl sm:text-5xl font-bold text-[#188B8B] mb-2">
-                88
-              </h3>
-              <p className="!text-sm !font-medium !text-[#0F1729]">
-                Overall Score
-              </p>
-              <p className="!text-xs text-[#65758B]">Top 12% nationally</p>
-            </div>
-            <div className="text-center py-2 flex-col justify-items-center">
-              <img src={CompletedIcon} alt="CompletedIcon" />
-              <p className="!text-sm !font-medium !text-[#0F1729] mt-2">
-                Completed Tests
-              </p>
-              <p className="!text-xs text-[#65758B]">3 of 4 modules</p>
-            </div>
-            <div className="text-center py-2 flex-col justify-items-center">
-              <img src={Carrericon} alt="Carrericon" />
-              <p className="!text-sm !font-medium !text-[#0F1729] mt-2">
-                Career Matches
-              </p>
-              <p className="!text-xs text-[#65758B]">15 pathways found</p>
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-1 border-b border-[#E1E7EF] mb-6">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition ${
+                activeTab === tab.id
+                  ? "bg-[#E8F4F8] text-[#0F1729] border-b-2 border-[#188B8B] -mb-px"
+                  : "text-[#65758B] hover:bg-[#f1f5f9]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Left Column - 2/3 width */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Your Tests */}
-            <div className="bg-white rounded-2xl p-4 sm:p-6 border-[#E1E7EF] shadow-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-xl sm:text-2xl font-semibold text-[#0F1729]">
-                  Your Tests
-                </h3>
-              </div>
-              <p className="!text-sm mb-3 sm:mb-4">
-                View and manage your aptitude tests
-              </p>
-
-              {/* Test Card 1 */}
-              <div className="border border-[#E1E7EF] rounded-xl p-3 sm:p-4 mb-3">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-semibold text-[#0F1729] font-[poppins]">
-                      Personality Assessment
-                    </span>
-                    <span className="text-xs bg-[#0B6565] text-white px-2 py-0.5 rounded-full font-medium font-inter">
-                      Completed
-                    </span>
-                  </div>
+        {/* Tab content */}
+        {activeTab === "overview" && (
+          <div className="space-y-6">
+            {/* Three summary cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <img src={prsonIcon} alt="" className="w-5 h-5 text-[#188B8B]" />
+                  <span className="text-sm font-medium text-[#65758B]">Overall Score</span>
                 </div>
-                <p className="!text-sm mb-2">Completed on Nov 28, 2024</p>
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                  <span className="text-sm text-[#65758B] font-inter font-regular">
-                    Score: 88/100
-                  </span>
-                  <Link
-                    to="#"
-                    className="text-sm text-[#188B8B] font-medium font-inter"
-                  >
-                    View Report
-                  </Link>
+                <p className="text-2xl font-bold text-[#0F1729]">
+                  {data.overallScore != null ? data.overallScore : "—"}/100
+                </p>
+                <p className="text-sm text-[#65758B] mt-1">{getReadinessLabel(data.overallScore)}</p>
+                <div className="mt-3 h-2 bg-[#E1E7EF] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#188B8B] rounded-full transition-all"
+                    style={{ width: `${Math.min(100, data.overallScore ?? 0)}%` }}
+                  />
                 </div>
               </div>
-
-              {/* Test Card 2 */}
-              <div className="border border-[#E1E7EF] rounded-xl p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-semibold text-[#0F1729] font-[poppins]">
-                      Numerical Reasoning
-                    </span>
-                    <span className="text-xs bg-[#0B6565] text-white px-2 py-0.5 rounded-full font-medium font-inter">
-                      Completed
-                    </span>
-                  </div>
+              <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <img src={categIcon} alt="" className="w-5 h-5" />
+                  <span className="text-sm font-medium text-[#65758B]">Top Category</span>
                 </div>
-                <p className="!text-sm mb-2">Completed on Nov 25, 2024</p>
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                  <span className="text-sm text-[#65758B] font-inter font-regular">
-                    Score: 92/100
-                  </span>
-                  <Link
-                    to="#"
-                    className="text-sm text-[#188B8B] font-medium font-inter"
-                  >
-                    View Report
-                  </Link>
+                <p className="text-lg font-bold text-[#0F1729]">
+                  {(topCareer && (topCareer.category || topCareer.title)) || (data.strengths?.[0]?.name) || "—"}
+                </p>
+                <p className="text-sm text-[#65758B] mt-1">
+                  {topCareer?.description || data.strengths?.[0]?.desc || "Strong analytical and problem-solving skills"}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <img src={fitIcon} alt="" className="w-5 h-5" />
+                  <span className="text-sm font-medium text-[#65758B]">Best Fit</span>
                 </div>
+                <p className="text-lg font-bold text-[#0F1729]">{topCareer?.title || "—"}</p>
+                <p className="text-sm text-[#188B8B] font-semibold mt-1">
+                  {topCareer?.matchPercent != null ? `${topCareer.matchPercent}% match with your profile` : "Complete tests to see match"}
+                </p>
               </div>
             </div>
 
-            {/* Your Strengths & Skills */}
-            <div className="bg-white rounded-2xl p-4 sm:p-6 border-[#E1E7EF] shadow-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <img src={SkillIcon} alt="SkillIcon" />
-                <h3 className="text-xl sm:text-2xl font-semibold text-[#0F1729]">
-                  Your Strengths & Skills
-                </h3>
+            {/* Four section results */}
+            <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-[#0F1729] mb-4">Section Results</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {sectionResults.map((sec) => (
+                  <div key={sec.id} className="border border-[#E1E7EF] rounded-lg p-4">
+                    <p className="font-semibold text-[#0F1729]">{sec.title}</p>
+                    <p className="text-sm text-[#65758B] mt-1">
+                      Score: {sec.score != null ? `${sec.score}/${sec.maxScore}` : "—"}
+                    </p>
+                    {sec.completedAt && (
+                      <p className="text-xs text-[#65758B] mt-1">Completed {formatDate(sec.completedAt)}</p>
+                    )}
+                  </div>
+                ))}
               </div>
-              <p className="!text-sm mb-4 sm:mb-6">
-                Areas where you excel based on assessments
-              </p>
-
-              {[
-                {
-                  name: "Analytical Thinking",
-                  value: 92,
-                  desc: "Exceptional ability to analyze complex problems and find logical solutions",
-                },
-                {
-                  name: "Creative Problem Solving",
-                  value: 85,
-                  desc: "Strong creative thinking with innovative approaches to challenges",
-                },
-                {
-                  name: "Communication",
-                  value: 78,
-                  desc: "Good ability to express ideas clearly and work in teams",
-                },
-                {
-                  name: "Technical Aptitude",
-                  value: 88,
-                  desc: "Strong understanding of technical concepts and systems",
-                },
-                {
-                  name: "Leadership Potential",
-                  value: 72,
-                  desc: "Developing leadership skills with room for growth",
-                },
-              ].map((skill, idx) => (
-                <div key={idx} className="mb-4 sm:mb-5">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-inter font-medium text-[#0F1729]">
-                      {skill.name}
-                    </span>
-                    <span className="text-sm font-bold text-[#188B8B]">
-                      {skill.value}%
-                    </span>
-                  </div>
-                  <div className="h-2 sm:h-2.5 bg-[#0B6565] rounded-full overflow-hidden mb-2">
-                    <div
-                      className="h-full bg-[#188B8B]"
-                      style={{ width: `${skill.value}%` }}
-                    ></div>
-                  </div>
-                  <p className="!text-xs">{skill.desc}</p>
-                </div>
-              ))}
             </div>
 
-            {/* Top Career Recommendations */}
-            <div className="bg-white rounded-2xl p-4 sm:p-6 border-[#E1E7EF] shadow-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <img src={CircleIcon} alt="SkillIcon" />
-                <h3 className="text-xl sm:text-2xl font-semibold text-[#0F1729]">
-                  Top Career Recommendations
-                </h3>
-              </div>
-              <p className="!text-sm mb-4 sm:mb-5">
-                Careers that match your profile (sorted by compatibility)
-              </p>
-
-              {/* Career 1 */}
-              <div className="bg-[rgba(24,139,139,0.05)] border-2 border-[rgba(24,139,139,0.2)] rounded-xl p-3 sm:p-4 mb-3">
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-[poppins] text-lg font-semibold text-[#0F1729]">
-                      Data Scientist
-                    </span>
-                    <span className="font-inter text-xs border border[rgba(24,139,139,0.2)] bg-[rgba(24,139,139,0.1)] text-[#188B8B] px-2 py-0.5 rounded-full font-semibold">
-                      95% Match
-                    </span>
+            {/* Personality Profile */}
+            <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-[#0F1729] mb-4">Personality Profile</h3>
+              <div className="space-y-4">
+                {personalityTraits.map((t, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium text-[#0F1729]">{t.name}</span>
+                      <span className="text-sm font-semibold text-[#188B8B]">{t.value}%</span>
+                    </div>
+                    <div className="h-2 bg-[#E1E7EF] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#188B8B] rounded-full"
+                        style={{ width: `${Math.min(100, t.value)}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-                <p className="!text-sm mb-3">
-                  Analyze complex data sets to extract insights and drive
-                  business decisions
-                </p>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Python
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Statistics
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Machine Learning
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Data Visualization
-                  </span>
-                </div>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <span className="font-inter text-sm text-[#65758B]">
-                    Avg. Salary: ₹8-15 LPA
-                  </span>
-                  <Link
-                    to="#"
-                    className="text-sm text-[#188B8B] font-medium font-inter"
-                  >
-                    View Details →
-                  </Link>
-                </div>
+                ))}
               </div>
-
-              {/* Career 2 */}
-              <div className="bg-[rgba(24,139,139,0.05)] border-2 border-[rgba(24,139,139,0.2)] rounded-xl p-3 sm:p-4 mb-3">
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-[poppins] text-lg font-semibold text-[#0F1729]">
-                      UX Designer
-                    </span>
-                    <span className="font-inter text-xs border border[rgba(24,139,139,0.2)] bg-[rgba(24,139,139,0.1)] text-[#188B8B] px-2 py-0.5 rounded-full font-semibold">
-                      89% Match
-                    </span>
-                  </div>
-                </div>
-                <p className="!text-sm mb-3">
-                  Create user-centered digital experiences that are intuitive
-                  and delightful
-                </p>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Figma
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    User Research
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Prototyping
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Design Systems
-                  </span>
-                </div>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <span className="font-inter text-sm text-[#65758B]">
-                    Avg. Salary: ₹6-12 LPA
-                  </span>
-                  <Link
-                    to="#"
-                    className="text-sm text-[#188B8B] font-medium font-inter"
-                  >
-                    View Details →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Career 3 */}
-              <div className="border border-[#E1E7EF] rounded-xl p-3 sm:p-4 mb-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-[poppins] text-lg font-semibold text-[#0F1729]">
-                      Business Analyst
-                    </span>
-                    <span className="font-inter text-xs border border-[#E1E7EF] text-[#0F1729] px-2 py-0.5 rounded-full font-semibold">
-                      87% Match
-                    </span>
-                  </div>
-                </div>
-                <p className="!text-sm mb-3">
-                  Bridge business needs with technology solutions
-                </p>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    SQL
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Excel
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Business Strategy
-                  </span>
-                  <span className="font-inter text-xs bg-[#0B6565] text-white px-2 sm:px-3 py-1 rounded-full font-medium">
-                    Requirements
-                  </span>
-                </div>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <span className="font-inter text-sm text-[#65758B]">
-                    Avg. Salary: ₹5-10 LPA
-                  </span>
-                  <Link
-                    to="#"
-                    className="text-sm text-[#188B8B] font-medium font-inter"
-                  >
-                    View Details →
-                  </Link>
-                </div>
-              </div>
-
-              <button className="w-full border-2 border-[#188B8B] text-[#188B8B] py-2 sm:py-2.5 rounded-[14px] font-inter text-sm font-semibold hover:bg-teal-50">
-                For more career advice, book a call
-              </button>
             </div>
           </div>
+        )}
 
-          {/* Right Column - 1/3 width */}
-          <div className="space-y-4 sm:space-y-6">
-            {/* Personality Type */}
-            <div className="bg-gradient-to-br from-[rgba(245,159,10,0.1)] to-[rgba(245,159,10,0.05)] border border-[rgba(245,159,10,0.2)] rounded-2xl p-4 sm:p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <img src={BulbIcon} alt="BulbIcon" />
-                <h3 className="text-lg font-semibold text-[#0F1729]">
-                  Your Personality Type
-                </h3>
-              </div>
-              <div className="mb-3">
-                <h4 className="text-2xl font-bold text-[#0F1729] pb-2">
-                  INTJ-A
-                </h4>
-                <span className="text-sm font-medium text-[#0F1729] font-inter">
-                  The Architect
-                </span>
-              </div>
-              <p className="!text-sm mb-4 leading-relaxed">
-                Strategic, independent thinker with a natural drive for
-                implementing innovative ideas
-              </p>
-              <div className="space-y-2 font-inter text-sm border-t pt-4 border-[#E1E7EF]">
-                <div className="flex justify-between">
-                  <span className="text-[#65758B]">Introversion</span>
-                  <span className="font-semibold text-[#0F1729]">65%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#65758B]">Intuition</span>
-                  <span className="font-semibold text-[#0F1729]">78%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#65758B]">Thinking</span>
-                  <span className="font-semibold text-[#0F1729]">82%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#65758B]">Judging</span>
-                  <span className="font-semibold text-[#0F1729]">71%</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Recommended Next Steps */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-[#E1E7EF]">
-              <h3 className="text-lg font-semibold text-[#0F1729] mb-4">
-                Recommended Next Steps
-              </h3>
-              <div className="space-y-3 mb-5">
-                <div className="flex items-center gap-3 bg-[#DCF9F9] rounded-xl p-3">
-                  <span className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-[#188B8B] text-white rounded-full flex items-center justify-center text-xs font-bold font-inter">
-                    1
-                  </span>
-                  <div>
-                    <span className="text-sm font-medium text-[#0F1729] font-inter">
-                      Book Counseling
-                    </span>
-                    <p className="!text-xs">
-                      Discuss results with a psychologist
-                    </p>
+        {activeTab === "strengths" && (
+          <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+            <h3 className="text-lg font-semibold text-[#0F1729] mb-4">Your Strengths</h3>
+            {data.strengths && data.strengths.length > 0 ? (
+              <div className="space-y-4">
+                {data.strengths.map((skill, idx) => (
+                  <div key={idx}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium text-[#0F1729]">{skill.name}</span>
+                      <span className="text-sm font-bold text-[#188B8B]">{skill.value}%</span>
+                    </div>
+                    <div className="h-2 bg-[#E1E7EF] rounded-full overflow-hidden">
+                      <div className="h-full bg-[#188B8B] rounded-full" style={{ width: `${Math.min(100, skill.value)}%` }} />
+                    </div>
+                    {skill.desc && <p className="text-xs text-[#65758B] mt-1">{skill.desc}</p>}
                   </div>
-                </div>
-                <div className="flex items-center gap-3 bg-[#DCF9F9] rounded-xl p-3">
-                  <span className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-[#0B6565] text-white rounded-full flex items-center justify-center text-xs font-bold font-inter">
-                    2
-                  </span>
-                  <div>
-                    <span className="text-sm font-medium text-[#0F1729] font-inter">
-                      Explore Career Paths
-                    </span>
-                    <p className="!text-xs">
-                      Research your top matches in detail
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 bg-[#DCF9F9] rounded-xl p-3">
-                  <span className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-[#F59F0A] text-[#0F1729] rounded-full flex items-center justify-center text-xs font-bold font-inter">
-                    3
-                  </span>
-                  <div>
-                    <span className="text-sm font-medium text-[#0F1729] font-inter">
-                      Create Action Plan
-                    </span>
-                    <p className="!text-xs">Set goals and milestones</p>
-                  </div>
-                </div>
+                ))}
               </div>
-              <button className="w-full bg-[#F59F0A] text-[#0F1729] py-2.5 sm:py-3 font-inter rounded-[14px] text-sm font-semibold hover:bg-orange-500 flex items-center justify-center gap-2">
-                <img src={SchduleIcon} alt="ScheduleIcon" />
-                <span>Schedule Counselling</span>
-              </button>
-            </div>
-
-            {/* Complete Your Profile */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-[#E1E7EF]">
-              <h3 className="text-lg font-semibold text-[#0F1729] mb-2">
-                Complete Your Profile
-              </h3>
-              <p className="!text-sm mb-4">
-                Take additional tests for deeper insights
-              </p>
-              <button className="w-full border-2 border-[#188B8B] text-[#188B8B] py-2 sm:py-2.5 rounded-[14px] font-inter text-sm font-semibold hover:bg-teal-50">
-                Browse Tests
-              </button>
-            </div>
+            ) : (
+              <p className="text-[#65758B]">Complete more tests to see your strengths.</p>
+            )}
           </div>
-        </div>
+        )}
+
+        {activeTab === "interests" && (
+          <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+            <h3 className="text-lg font-semibold text-[#0F1729] mb-4">Interests</h3>
+            {personality.title && (
+              <p className="text-[#0F1729] font-medium">{personality.code} — {personality.title}</p>
+            )}
+            {personality.description && <p className="text-[#65758B] mt-2 text-sm">{personality.description}</p>}
+            {(!personality.code && !personality.description) && (
+              <p className="text-[#65758B]">Your interest profile will appear here after completing the assessment.</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === "career-paths" && (
+          <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+            <h3 className="text-lg font-semibold text-[#0F1729] mb-4">Career Paths</h3>
+            {data.careerRecommendations && data.careerRecommendations.length > 0 ? (
+              <div className="space-y-4">
+                {data.careerRecommendations.map((career, idx) => (
+                  <div key={idx} className="border border-[#E1E7EF] rounded-lg p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-[#0F1729]">{career.title}</span>
+                      <span className="text-xs bg-[#188B8B]/10 text-[#188B8B] px-2 py-0.5 rounded-full font-semibold">
+                        {career.matchPercent}% Match
+                      </span>
+                    </div>
+                    {career.description && <p className="text-sm text-[#65758B] mt-2">{career.description}</p>}
+                    {career.skills && career.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {career.skills.map((s, i) => (
+                          <span key={i} className="text-xs bg-[#0B6565] text-white px-2 py-1 rounded-full">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <Link to="/bookcounselling" className="inline-block mt-4 text-[#188B8B] font-medium hover:underline">
+                  For more career advice, book a call
+                </Link>
+              </div>
+            ) : (
+              <p className="text-[#65758B]">Complete tests to see career path recommendations.</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === "next-steps" && (
+          <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
+            <h3 className="text-lg font-semibold text-[#0F1729] mb-4">Next Steps</h3>
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center gap-3 bg-[#E8F4F8] rounded-xl p-3">
+                <span className="w-8 h-8 bg-[#188B8B] text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                <div>
+                  <span className="font-medium text-[#0F1729]">Book Counseling</span>
+                  <p className="text-xs text-[#65758B]">Discuss results with a psychologist</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-[#E8F4F8] rounded-xl p-3">
+                <span className="w-8 h-8 bg-[#0B6565] text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                <div>
+                  <span className="font-medium text-[#0F1729]">Explore Career Paths</span>
+                  <p className="text-xs text-[#65758B]">Research your top matches in detail</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-[#E8F4F8] rounded-xl p-3">
+                <span className="w-8 h-8 bg-[#F59F0A] text-[#0F1729] rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                <div>
+                  <span className="font-medium text-[#0F1729]">Create Action Plan</span>
+                  <p className="text-xs text-[#65758B]">Set goals and milestones</p>
+                </div>
+              </div>
+            </div>
+            <Link
+              to="/bookcounselling"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F59F0A] text-[#0F1729] font-semibold rounded-lg hover:bg-[#D97706]"
+            >
+              <img src={SchduleIcon} alt="" className="w-4 h-4" />
+              Schedule Counselling
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
