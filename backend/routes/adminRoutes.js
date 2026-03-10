@@ -1,7 +1,11 @@
 import express from "express";
-import { protect } from "../middleware/auth.js";
+import { adminOnly, protect } from "../middleware/auth.js";
 import {
   getLiveAdminData,
+  createUserByAdmin,
+  updateUserByAdmin,
+  resetUserPasswordByAdmin,
+  changeAdminPassword,
 } from "../controllers/adminController.js";
 import {
   getPackages,
@@ -20,17 +24,23 @@ import {
 
 const router = express.Router();
 
-router.get("/packages", protect, getPackages);
-router.post("/packages", protect, upsertPackage);
-router.patch("/packages/:packageId/activate", protect, activatePackage);
+router.use(protect, adminOnly);
 
-router.get("/coupons", protect, listCoupons);
-router.post("/coupons", protect, createCoupon);
-router.delete("/coupons/:couponId", protect, deleteCoupon);
+router.get("/packages", getPackages);
+router.post("/packages", upsertPackage);
+router.patch("/packages/:packageId/activate", activatePackage);
 
-router.get("/mail-lists", protect, listMailLists);
-router.post("/mail-lists", protect, uploadMailList);
+router.get("/coupons", listCoupons);
+router.post("/coupons", createCoupon);
+router.delete("/coupons/:couponId", deleteCoupon);
 
-router.get("/live-data", protect, getLiveAdminData);
+router.get("/mail-lists", listMailLists);
+router.post("/mail-lists", uploadMailList);
+
+router.get("/live-data", getLiveAdminData);
+router.post("/users", createUserByAdmin);
+router.patch("/users/:userId", updateUserByAdmin);
+router.post("/users/:userId/reset-password", resetUserPasswordByAdmin);
+router.post("/change-password", changeAdminPassword);
 
 export default router;

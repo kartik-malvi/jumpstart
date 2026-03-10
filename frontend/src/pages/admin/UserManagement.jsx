@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
-import { Search, ChevronDown, MoreVertical } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { ChevronDown, MoreVertical, Search, X } from "lucide-react";
+import api from "../../api/api";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { timeAgo } from "../../utils/adminFormat";
 
@@ -30,11 +31,32 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const Modal = ({ title, children, onClose }) => (
+  <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+        <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+        <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100">
+          <X size={18} />
+        </button>
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  </div>
+);
+
 const UserManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [subscriptionFilter, setSubscriptionFilter] = useState("All");
-  const { data, loading } = useAdminLiveData(5000);
+  const [activeMenu, setActiveMenu] = useState("");
+  const [editingUser, setEditingUser] = useState(null);
+  const [passwordUser, setPasswordUser] = useState(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", subscription: "Basic", status: "Active", role: "user" });
+  const [password, setPassword] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { data, loading, refetch } = useAdminLiveData(5000);
 
   const filteredUsers = useMemo(() => {
     return (data.users || []).filter((user) => {
@@ -49,11 +71,77 @@ const UserManagement = () => {
     });
   }, [data.users, searchQuery, statusFilter, subscriptionFilter]);
 
+  const openEdit = (user) => {
+    setActiveMenu("");
+    setActionError("");
+    setEditingUser(user);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      phone: user.phone === "-" ? "" : user.phone,
+      subscription: user.subscription,
+      status: user.status,
+      role: user.role || "user",
+    });
+  };
+
+  const openPassword = (user) => {
+    setActiveMenu("");
+    setActionError("");
+    setPassword("");
+    setPasswordUser(user);
+  };
+
+  const updateUser = async (payload) => {
+    if (!editingUser) return;
+    setSaving(true);
+    setActionError("");
+    try {
+      await api.patch(`/v1/admin/users/${editingUser.id}`, payload);
+      setSaving(false);
+      setEditingUser(null);
+      refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to update user");
+      setSaving(false);
+    }
+  };
+
+  const handleQuickStatusToggle = async (user) => {
+    setActiveMenu("");
+    try {
+      await api.patch(`/v1/admin/users/${user.id}`, {
+        status: user.status === "Active" ? "Suspended" : "Active",
+      });
+      refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to update status");
+    }
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    if (!passwordUser) return;
+    setSaving(true);
+    setActionError("");
+    try {
+      await api.post(`/v1/admin/users/${passwordUser.id}/reset-password`, { password });
+      setSaving(false);
+      setPasswordUser(null);
+      setPassword("");
+      refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to reset password");
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 max-w-[1440px] mx-auto font-['Inter'] p-6 md:p-8 w-full">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">User Management</h1>
-        <p className="text-gray-400 text-sm font-medium">Manage user accounts and permissions</p>
+        <p className="text-gray-400 text-sm font-medium">Manage user accounts, status and passwords</p>
+        {actionError && !editingUser && !passwordUser && <p className="text-sm text-rose-500 mt-2">{actionError}</p>}
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -145,10 +233,26 @@ const UserManagement = () => {
                     <td className="px-6 py-5 text-center">
                       <StatusBadge status={user.status} />
                     </td>
-                    <td className="px-6 py-5 text-right">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+                    <td className="px-6 py-5 text-right relative">
+                      <button
+                        onClick={() => setActiveMenu((current) => (current === user.id ? "" : user.id))}
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                      >
                         <MoreVertical size={18} />
                       </button>
+                      {activeMenu === user.id && (
+                        <div className="absolute right-6 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-10 overflow-hidden">
+                          <button onClick={() => openEdit(user)} className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50">
+                            Edit user
+                          </button>
+                          <button onClick={() => openPassword(user)} className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50">
+                            Change password
+                          </button>
+                          <button onClick={() => handleQuickStatusToggle(user)} className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50">
+                            {user.status === "Active" ? "Suspend user" : "Activate user"}
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -161,6 +265,68 @@ const UserManagement = () => {
           </table>
         </div>
       </div>
+
+      {editingUser && (
+        <Modal title={`Edit ${editingUser.name}`} onClose={() => { setEditingUser(null); setSaving(false); setActionError(""); }}>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateUser({
+                name: editForm.name,
+                email: editForm.email,
+                mobile: editForm.phone,
+                subscription: editForm.subscription,
+                status: editForm.status,
+                role: editForm.role,
+              });
+            }}
+          >
+            <input className="w-full border border-slate-200 rounded-2xl px-4 py-3" value={editForm.name} onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))} required />
+            <input className="w-full border border-slate-200 rounded-2xl px-4 py-3" type="email" value={editForm.email} onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))} required />
+            <input className="w-full border border-slate-200 rounded-2xl px-4 py-3" value={editForm.phone} onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))} placeholder="Phone" />
+            <div className="grid grid-cols-3 gap-4">
+              <select className="border border-slate-200 rounded-2xl px-4 py-3" value={editForm.subscription} onChange={(e) => setEditForm((prev) => ({ ...prev, subscription: e.target.value }))}>
+                <option value="Basic">Basic</option>
+                <option value="Standard">Standard</option>
+                <option value="Premium">Premium</option>
+              </select>
+              <select className="border border-slate-200 rounded-2xl px-4 py-3" value={editForm.status} onChange={(e) => setEditForm((prev) => ({ ...prev, status: e.target.value }))}>
+                <option value="Active">Active</option>
+                <option value="Suspended">Suspended</option>
+              </select>
+              <select className="border border-slate-200 rounded-2xl px-4 py-3" value={editForm.role} onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}>
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            {actionError && <p className="text-sm text-rose-500">{actionError}</p>}
+            <button type="submit" disabled={saving} className="w-full rounded-2xl bg-slate-900 text-white py-3 font-semibold disabled:opacity-60">
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {passwordUser && (
+        <Modal title={`Change Password: ${passwordUser.name}`} onClose={() => { setPasswordUser(null); setSaving(false); setActionError(""); }}>
+          <form className="space-y-4" onSubmit={handlePasswordReset}>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+              placeholder="New password"
+              minLength={6}
+              required
+            />
+            {actionError && <p className="text-sm text-rose-500">{actionError}</p>}
+            <button type="submit" disabled={saving} className="w-full rounded-2xl bg-slate-900 text-white py-3 font-semibold disabled:opacity-60">
+              {saving ? "Updating..." : "Update Password"}
+            </button>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 };

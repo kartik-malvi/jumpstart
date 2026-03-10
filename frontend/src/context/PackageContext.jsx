@@ -13,14 +13,14 @@ const PackageContext = createContext({
 });
 
 export const PackageProvider = ({ children }) => {
-  const { token } = useContext(AuthContext);
+  const { token, user } = useContext(AuthContext);
   const [packages, setPackages] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [mailLists, setMailLists] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!token) {
+    if (!token || user?.role !== "admin") {
       setPackages([]);
       setCoupons(getDefaultCoupons());
       setMailLists([]);
@@ -44,7 +44,7 @@ export const PackageProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, user?.role]);
 
   useEffect(() => {
     fetchData();

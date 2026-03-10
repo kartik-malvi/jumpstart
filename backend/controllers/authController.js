@@ -83,6 +83,13 @@ export const login = async (req, res) => {
       });
     }
 
+    if (user.status === "Suspended") {
+      return res.status(403).json({
+        success: false,
+        msg: "Your account is suspended",
+      });
+    }
+
     if (!user.password) {
       return res.status(401).json({
         success: false,
@@ -169,6 +176,12 @@ export const socialLogin = async (req, res) => {
     });
 
     if (user) {
+      if (user.status === "Suspended") {
+        return res.status(403).json({
+          success: false,
+          msg: "Your account is suspended",
+        });
+      }
       if (!user.googleId) {
         user.googleId = googleId;
         user.avatar = avatar;

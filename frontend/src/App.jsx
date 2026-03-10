@@ -1,5 +1,5 @@
 import React from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { Navigate, createBrowserRouter, RouterProvider } from "react-router-dom";
 import "./index.css";
 
 // PAGES
@@ -23,6 +23,7 @@ import TestCompleted from "./pages/TestCompleted";
 import MainLayout from "./layout/MainLayout";
 import BlankLayout from "./layout/BlankLayout";
 import AdminLayout from "./layout/AdminLayout";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TestSubmissions from "./pages/admin/TestSubmissions";
 import PublishedResult from "./pages/admin/PublishedResult";
@@ -30,6 +31,7 @@ import UserManagement from "./pages/admin/UserManagement";
 import Payments from "./pages/admin/Payments";
 import Analytics from "./pages/admin/Analytics";
 import Settings from "./pages/admin/Settings";
+import AdminLogin from "./pages/admin/AdminLogin";
 
 const router = createBrowserRouter([
   // 🌍 PUBLIC + USER PAGES (WITH HEADER & FOOTER)
@@ -83,9 +85,23 @@ const router = createBrowserRouter([
 
   // 🛠️ ADMIN ROUTES (NO HEADER / FOOTER)
   {
-    path: "/admin",
-    element: <AdminLayout />,
+    path: "/service",
     children: [
+      {
+        path: "login",
+        element: <AdminLogin />,
+      },
+    ],
+  },
+  {
+    path: "/service",
+    element: (
+      <AdminProtectedRoute>
+        <AdminLayout />
+      </AdminProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <Navigate to="/service/dashboard" replace /> },
       {
         path: "dashboard",
         element: <Admindashboard />,
@@ -115,6 +131,10 @@ const router = createBrowserRouter([
         element: <Settings />,
       },
     ],
+  },
+  {
+    path: "/admin/*",
+    element: <Navigate to="/service/dashboard" replace />,
   },
 
   // 🧱 BLANK PAGES (no header/footer)

@@ -121,6 +121,9 @@ const Settings = () => {
   const activePackage = contextActivePackage || DEFAULT_PACKAGE;
   const [packageForm, setPackageForm] = useState(activePackage);
   const [packageModalMode, setPackageModalMode] = useState('edit');
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     setCoupons(contextCoupons);
@@ -284,6 +287,38 @@ const Settings = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPasswordMessage('');
+    setPasswordError('');
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      setPasswordError('Current password and new password are required');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New password and confirmation do not match');
+      return;
+    }
+
+    try {
+      await api.post('/v1/admin/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordMessage('Password updated successfully');
+    } catch (err) {
+      setPasswordError(err?.response?.data?.msg || 'Failed to update password');
+    }
+  };
+
   const handleSavePackage = async (e) => {
     e.preventDefault();
     const cleanSections = (packageForm.sections || [])
@@ -394,6 +429,7 @@ const Settings = () => {
         <SettingsTab label="Pricing" active={activeTab === 'pricing'} onClick={() => setActiveTab('pricing')} />
         <SettingsTab label="Email Templates" active={activeTab === 'emails'} onClick={() => setActiveTab('emails')} />
         <SettingsTab label="Notifications" active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
+        <SettingsTab label="Account" active={activeTab === 'account'} onClick={() => setActiveTab('account')} />
       </div>
 
       {activeTab === 'pricing' && (
@@ -523,6 +559,42 @@ const Settings = () => {
           <div className="p-4 bg-gray-50 rounded-full text-gray-300"><Bell size={40} /></div>
           <h3 className="text-xl font-bold text-gray-900">Push & In-App Notifications</h3>
           <p className="text-gray-400 max-w-md">Set rules for triggers that notify administrators and users about critical events on the platform.</p>
+        </div>
+      )}
+
+      {activeTab === 'account' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-2xl">
+          <h3 className="text-xl font-bold text-gray-900">Service Password</h3>
+          <p className="text-gray-400 text-sm mt-1">Change the password used to access the service dashboard.</p>
+
+          <form className="space-y-4 mt-6" onSubmit={handlePasswordChange}>
+            <input
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+              placeholder="Current password"
+              className="w-full px-4 py-3 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+            />
+            <input
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+              placeholder="New password"
+              className="w-full px-4 py-3 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+            />
+            <input
+              type="password"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+              placeholder="Confirm new password"
+              className="w-full px-4 py-3 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+            />
+            {passwordError && <p className="text-sm text-rose-500">{passwordError}</p>}
+            {passwordMessage && <p className="text-sm text-emerald-600">{passwordMessage}</p>}
+            <button type="submit" className="px-5 py-3 rounded-xl bg-[#14b8a6] text-white text-sm font-semibold hover:bg-teal-700 transition">
+              Change Password
+            </button>
+          </form>
         </div>
       )}
 

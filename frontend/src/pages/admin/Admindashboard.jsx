@@ -1,36 +1,34 @@
-import React from "react";
-import { TrendingUp, TrendingDown, Plus, Percent, Download } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Download, Percent, Plus, TrendingDown, TrendingUp, X } from "lucide-react";
 import {
-  LineChart,
+  Area,
+  AreaChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
 } from "recharts";
+import api from "../../api/api";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { timeAgo } from "../../utils/adminFormat";
+import { downloadCsv, openPrintPdf } from "../../utils/adminExport";
 
-const growthData = [
-  { name: "May", value: 420 },
-  { name: "Jun", value: 580 },
-  { name: "Jul", value: 720 },
-  { name: "Aug", value: 900 },
-  { name: "Sep", value: 1100 },
-  { name: "Oct", value: 1450 },
-];
-
-const revenueData = [
-  { name: "May", value: 140000 },
-  { name: "Jun", value: 180000 },
-  { name: "Jul", value: 210000 },
-  { name: "Aug", value: 240000 },
-  { name: "Sep", value: 275000 },
-  { name: "Oct", value: 300000 },
-];
+const Modal = ({ title, children, onClose }) => (
+  <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+        <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+        <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100">
+          <X size={18} />
+        </button>
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  </div>
+);
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -38,6 +36,7 @@ const StatusBadge = ({ status }) => {
     "In Progress": "bg-orange-50 text-orange-600",
     Submitted: "bg-blue-50 text-blue-600",
     Scored: "bg-slate-100 text-slate-600",
+    "In Review": "bg-amber-50 text-amber-600",
   };
 
   return (
@@ -47,8 +46,40 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const initialUserForm = {
+  name: "",
+  email: "",
+  password: "",
+  mobile: "",
+  subscription: "Basic",
+  role: "user",
+};
+
+const initialCouponForm = {
+  code: "",
+  value: "",
+  discountType: "percentage",
+  validUntil: "",
+  maxUses: "",
+  note: "",
+};
+
 const AdminDashboard = () => {
-  const { data, loading, error } = useAdminLiveData(5000);
+  const { data, loading, error, refetch } = useAdminLiveData(5000);
+  const [modal, setModal] = useState("");
+  const [userForm, setUserForm] = useState(initialUserForm);
+  const [couponForm, setCouponForm] = useState(initialCouponForm);
+  const [actionError, setActionError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const growthData = useMemo(
+    () => (data.analytics?.monthlySeries || []).map((row) => ({ name: row.name, value: row.userGrowth || 0 })),
+    [data.analytics]
+  );
+  const revenueData = useMemo(
+    () => (data.analytics?.monthlySeries || []).map((row) => ({ name: row.name, value: row.revenue || 0 })),
+    [data.analytics]
+  );
 
   const kpiData = [
     { title: "Total Users", value: data.kpis.totalUsers || 0, change: "Live", trend: "up" },
@@ -56,6 +87,67 @@ const AdminDashboard = () => {
     { title: "Completed Tests", value: data.kpis.completedTests || 0, change: "Live", trend: "up" },
     { title: "Revenue", value: data.kpis.revenueLabel || "₹0", change: "Live", trend: "up" },
   ];
+
+  const closeModal = () => {
+    setModal("");
+    setActionError("");
+    setActionLoading(false);
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setActionError("");
+    try {
+      await api.post("/v1/admin/users", userForm);
+      setUserForm(initialUserForm);
+      closeModal();
+      refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to create user");
+      setActionLoading(false);
+    }
+  };
+
+  const handleCreateCoupon = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setActionError("");
+    try {
+      await api.post("/v1/admin/coupons", {
+        ...couponForm,
+        value: Number(couponForm.value),
+        maxUses: couponForm.maxUses ? Number(couponForm.maxUses) : null,
+      });
+      setCouponForm(initialCouponForm);
+      closeModal();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to create coupon");
+      setActionLoading(false);
+    }
+  };
+
+  const handleExportReports = () => {
+    const rows = [
+      ["Type", "Name", "Email", "Status", "Date"],
+      ...data.users.map((user) => ["User", user.name, user.email, user.status, user.createdAt || ""]),
+      ...data.payments.map((payment) => ["Payment", payment.name, payment.email, payment.status, payment.date || ""]),
+      ...data.submissions.map((submission) => ["Submission", submission.name, submission.email, submission.status, submission.date || ""]),
+    ];
+    downloadCsv("service-report.csv", rows);
+    openPrintPdf("Jumpstart Service Report", [
+      {
+        title: "Users",
+        headers: ["Name", "Email", "Subscription", "Status"],
+        rows: data.users.map((user) => [user.name, user.email, user.subscription, user.status]),
+      },
+      {
+        title: "Payments",
+        headers: ["User", "Package", "Amount", "Status"],
+        rows: data.payments.map((payment) => [payment.name, payment.package, payment.amountLabel, payment.status]),
+      },
+    ]);
+  };
 
   return (
     <main className="p-6 md:p-8 max-w-[1440px] mx-auto w-full flex flex-col gap-8">
@@ -66,8 +158,8 @@ const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpiData.map((item, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-50">
+        {kpiData.map((item) => (
+          <div key={item.title} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-50">
             <p className="text-sm text-gray-400 uppercase tracking-wide">{item.title}</p>
             <h3 className="text-3xl font-bold text-gray-900 mt-2">{item.value}</h3>
             <div className="flex items-center gap-1 mt-3">
@@ -90,7 +182,7 @@ const AdminDashboard = () => {
               <LineChart data={growthData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" />
-                <YAxis />
+                <YAxis allowDecimals={false} />
                 <Tooltip />
                 <Line type="monotone" dataKey="value" stroke="#14b8a6" strokeWidth={3} />
               </LineChart>
@@ -161,17 +253,152 @@ const AdminDashboard = () => {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-50">
         <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
         <div className="flex flex-wrap gap-4">
-          <button className="flex items-center gap-2 bg-[#f59e0b] text-white px-5 py-2.5 rounded-xl font-semibold text-sm">
+          <button
+            onClick={() => setModal("user")}
+            className="flex items-center gap-2 bg-[#f59e0b] text-white px-5 py-2.5 rounded-xl font-semibold text-sm"
+          >
             <Plus size={18} /> Add User
           </button>
-          <button className="flex items-center gap-2 border border-[#14b8a6] text-[#14b8a6] px-5 py-2.5 rounded-xl font-semibold text-sm">
+          <button
+            onClick={() => setModal("coupon")}
+            className="flex items-center gap-2 border border-[#14b8a6] text-[#14b8a6] px-5 py-2.5 rounded-xl font-semibold text-sm"
+          >
             <Percent size={18} /> Create Coupon
           </button>
-          <button className="flex items-center gap-2 border border-[#14b8a6] text-[#14b8a6] px-5 py-2.5 rounded-xl font-semibold text-sm">
+          <button
+            onClick={handleExportReports}
+            className="flex items-center gap-2 border border-[#14b8a6] text-[#14b8a6] px-5 py-2.5 rounded-xl font-semibold text-sm"
+          >
             <Download size={18} /> Export Reports
           </button>
         </div>
       </div>
+
+      {modal === "user" && (
+        <Modal title="Add User" onClose={closeModal}>
+          <form className="space-y-4" onSubmit={handleCreateUser}>
+            <input
+              className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+              placeholder="Full name"
+              value={userForm.name}
+              onChange={(e) => setUserForm((prev) => ({ ...prev, name: e.target.value }))}
+              required
+            />
+            <input
+              className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+              type="email"
+              placeholder="Email"
+              value={userForm.email}
+              onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
+              required
+            />
+            <input
+              className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+              type="password"
+              placeholder="Temporary password"
+              value={userForm.password}
+              onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
+              required
+            />
+            <input
+              className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+              placeholder="Mobile"
+              value={userForm.mobile}
+              onChange={(e) => setUserForm((prev) => ({ ...prev, mobile: e.target.value }))}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <select
+                className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+                value={userForm.subscription}
+                onChange={(e) => setUserForm((prev) => ({ ...prev, subscription: e.target.value }))}
+              >
+                <option value="Basic">Basic</option>
+                <option value="Standard">Standard</option>
+                <option value="Premium">Premium</option>
+              </select>
+              <select
+                className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+                value={userForm.role}
+                onChange={(e) => setUserForm((prev) => ({ ...prev, role: e.target.value }))}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            {actionError && <p className="text-sm text-rose-500">{actionError}</p>}
+            <button
+              type="submit"
+              disabled={actionLoading}
+              className="w-full rounded-2xl bg-slate-900 text-white py-3 font-semibold disabled:opacity-60"
+            >
+              {actionLoading ? "Creating..." : "Create User"}
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {modal === "coupon" && (
+        <Modal title="Create Coupon" onClose={closeModal}>
+          <form className="space-y-4" onSubmit={handleCreateCoupon}>
+            <input
+              className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+              placeholder="Coupon code"
+              value={couponForm.code}
+              onChange={(e) => setCouponForm((prev) => ({ ...prev, code: e.target.value }))}
+              required
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <select
+                className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+                value={couponForm.discountType}
+                onChange={(e) => setCouponForm((prev) => ({ ...prev, discountType: e.target.value }))}
+              >
+                <option value="percentage">Percentage</option>
+                <option value="fixed">Fixed</option>
+              </select>
+              <input
+                className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+                type="number"
+                min="1"
+                placeholder="Value"
+                value={couponForm.value}
+                onChange={(e) => setCouponForm((prev) => ({ ...prev, value: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+                type="date"
+                value={couponForm.validUntil}
+                onChange={(e) => setCouponForm((prev) => ({ ...prev, validUntil: e.target.value }))}
+              />
+              <input
+                className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+                type="number"
+                min="1"
+                placeholder="Max uses"
+                value={couponForm.maxUses}
+                onChange={(e) => setCouponForm((prev) => ({ ...prev, maxUses: e.target.value }))}
+              />
+            </div>
+            <textarea
+              className="w-full border border-slate-200 rounded-2xl px-4 py-3 min-h-28"
+              placeholder="Internal note"
+              value={couponForm.note}
+              onChange={(e) => setCouponForm((prev) => ({ ...prev, note: e.target.value }))}
+            />
+            {actionError && <p className="text-sm text-rose-500">{actionError}</p>}
+            <button
+              type="submit"
+              disabled={actionLoading}
+              className="w-full rounded-2xl bg-slate-900 text-white py-3 font-semibold disabled:opacity-60"
+            >
+              {actionLoading ? "Saving..." : "Create Coupon"}
+            </button>
+          </form>
+        </Modal>
+      )}
     </main>
   );
 };

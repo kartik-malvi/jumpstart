@@ -14,6 +14,13 @@ const DEFAULT_DATA = {
   submissions: [],
   publishedResults: [],
   recentActivity: [],
+  analytics: {
+    completionByPackage: [],
+    revenueDistribution: [],
+    registrationTrend: [],
+    topCareers: [],
+    monthlySeries: [],
+  },
   updatedAt: null,
 };
 

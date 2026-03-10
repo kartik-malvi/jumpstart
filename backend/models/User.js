@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema(
       default: "Basic",
     },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    status: { type: String, enum: ["Active", "Suspended"], default: "Active" },
     lastLoginAt: { type: Date, default: null },
 
     // Dashboard counters

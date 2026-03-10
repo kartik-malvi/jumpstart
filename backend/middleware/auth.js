@@ -18,9 +18,19 @@ export const protect = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ success: false, msg: "User not found" });
     }
+    if (user.status === "Suspended") {
+      return res.status(403).json({ success: false, msg: "Account is suspended" });
+    }
     req.user = user;
     next();
   } catch (err) {
     return res.status(401).json({ success: false, msg: "Invalid or expired token" });
   }
+};
+
+export const adminOnly = (req, res, next) => {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ success: false, msg: "Admin access required" });
+  }
+  next();
 };
