@@ -1,23 +1,11 @@
 import React, { useEffect, useState, useContext } from "react";
-import Header from "../components/Header";
-import Footer from "../components/footer";
+import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-
-import {
-  IoDocumentTextOutline,
-  IoVideocamOutline,
-  IoCalendarClearOutline,
-} from "react-icons/io5";
-
+import { CheckCircle, PlayCircle, FileText, Video, Calendar, HelpCircle } from "lucide-react";
 import api from "../api/api";
-
 import di1 from "../assets/di1.png";
 import di2 from "../assets/di2.png";
 import di3 from "../assets/di3.png";
-import bg1 from "../assets/bg1.png";
-import bg2 from "../assets/bg2.png";
-import bg3 from "../assets/bg3.png";
-import bg4 from "../assets/bg4.png";
 
 const Dashboard = () => {
   const { token, user } = useContext(AuthContext);
@@ -29,6 +17,8 @@ const Dashboard = () => {
     reports_ready: 0,
     counselling_sessions: 0,
     user_name: user?.name || "User",
+    available_tests: [],
+    top_careers: [],
   });
 
   useEffect(() => {
@@ -38,11 +28,7 @@ const Dashboard = () => {
     }
 
     api
-      .get("https://jumpstart-backend.alwaysdata.net/api/v1/user/init", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      .get("/v1/user/init")
       .then((res) => {
         const d = res?.data?.data;
 
@@ -57,198 +43,190 @@ const Dashboard = () => {
           reports_ready: d.reports_ready ?? 0,
           counselling_sessions: d.counselling_sessions ?? 0,
           user_name: d.user?.name || user?.name || "User",
+          available_tests: d.available_tests || [],
+          top_careers: d.top_careers || [],
         });
       })
       .catch((err) => {
         console.error("Dashboard API Error:", err);
-
-        // fallback dummy data
-        setStats({
-          tests_completed: 3,
-          tests_in_progress: 1,
-          reports_ready: 2,
-          counselling_sessions: 0,
+        setStats((prev) => ({
+          ...prev,
           user_name: user?.name || "User",
-        });
+        }));
       })
       .finally(() => setLoading(false));
   }, [token, user]);
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <div className="min-h-screen flex items-center justify-center text-xl">
-          Loading dashboard...
-        </div>
-        <Footer />
-      </>
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Loading dashboard...
+      </div>
     );
   }
 
+  const statCards = [
+    { label: "Tests Completed", value: stats.tests_completed, icon: CheckCircle, color: "text-emerald-500", bgColor: "bg-emerald-50" },
+    { label: "Tests in Progress", value: stats.tests_in_progress, icon: PlayCircle, color: "text-amber-500", bgColor: "bg-amber-50" },
+    { label: "Reports Ready", value: stats.reports_ready, icon: FileText, color: "text-blue-500", bgColor: "bg-blue-50" },
+    { label: "Counselling Sessions", value: stats.counselling_sessions, icon: Video, color: "text-slate-600", bgColor: "bg-slate-100" },
+  ];
+
+  const careerIcons = [di3, di2, di1];
+
   return (
-    <>
-      <div className="mx-auto max-w-7xl min-h-screen p-8 pb-30">
-        <h1 className="!text-[36px] font-semibold text-gray-800">
+    <div className="mx-auto max-w-7xl min-h-screen p-8 pb-12">
+        <h1 className="text-3xl font-bold text-[#0F1729]">
           Welcome, {stats.user_name}!
         </h1>
-        <p className="text-[#65758B] mt-1 !text-[16px]">
+        <p className="text-[#65758B] mt-1 text-base">
           Track your progress and continue your career discovery journey
         </p>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-          <div
-            className="bg-white shadow rounded-xl p-4 custom_dropshadow bg-no-repeat bg-[length:15%] bg-[90%]"
-            style={{ backgroundImage: `url(${bg1})` }}
-          >
-            <p className="text-gray-500 !text-[14px]">Tests Completed</p>
-            <h2 className="text-4xl font-bold text-teal-500 mt-1">
-              {stats.tests_completed}
-            </h2>
-          </div>
-
-          <div
-            className="bg-white shadow rounded-xl p-4 custom_dropshadow bg-no-repeat bg-[length:15%] bg-[90%]"
-            style={{ backgroundImage: `url(${bg4})` }}
-          >
-            <p className="text-gray-500 !text-[14px]">Tests In Progress</p>
-            <h2 className="text-4xl font-bold text-yellow-500 mt-1">
-              {stats.tests_in_progress}
-            </h2>
-          </div>
-
-          <div
-            className="bg-white shadow rounded-xl p-4 custom_dropshadow bg-no-repeat bg-[length:15%] bg-[90%]"
-            style={{ backgroundImage: `url(${bg3})` }}
-          >
-            <p className="text-gray-500 !text-[14px]">Reports Ready</p>
-            <h2 className="text-4xl font-bold text-blue-500 mt-1">
-              {stats.reports_ready}
-            </h2>
-          </div>
-
-          <div
-            className="bg-white shadow rounded-xl p-4 custom_dropshadow bg-no-repeat bg-[length:15%] bg-[90%]"
-            style={{ backgroundImage: `url(${bg2})` }}
-          >
-            <p className="text-gray-500 !text-[14px]">Counselling Sessions</p>
-            <h2 className="text-4xl font-bold text-green-500 mt-1">
-              {stats.counselling_sessions}
-            </h2>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+          {statCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={card.label}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-start justify-between"
+              >
+                <div>
+                  <p className="text-gray-500 text-sm">{card.label}</p>
+                  <h2 className={`text-4xl font-bold mt-1 ${card.color}`}>
+                    {card.value}
+                  </h2>
+                </div>
+                <div className={`p-3 rounded-xl ${card.bgColor} ${card.color}`}>
+                  <Icon size={24} strokeWidth={2} />
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Bottom Section (Your same UI) */}
+        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-          <div className="bg-white custom_dropshadow rounded-xl p-6 lg:col-span-2">
-            <h2 className="!text-[24px] font-semibold ">Available Tests</h2>
-            <p className="text-[#65758B] mt-1 !text-[16px] mb-4">
+          {/* Available Tests */}
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-[#0F1729]">Available Tests</h2>
+            <p className="text-[#65758B] mt-1 text-base mb-6">
               View and manage your aptitude tests
             </p>
 
-            {Array(5)
-              .fill(0)
-              .map((_, i) => (
-                <div
-                  key={i}
-                  className="border border-[#E1E7EF] rounded-xl p-4 mb-3 hover:bg-gray-50 transition"
-                >
-                  <h3 className="font-semibold !text-[16px] text-gray-800">
-                    {i === 0 ? "Personality Assessment" : "Numerical Reasoning"}
-                  </h3>
-                  <p className="text-gray-500 !text-[16px]">
-                    Total Duration: 180 Minutes
-                  </p>
-                  <p className="text-gray-500 !text-[16px]">
-                    Total Questions: 500
-                  </p>
-                </div>
-              ))}
+            {stats.available_tests && stats.available_tests.length > 0 ? (
+              <div className="space-y-4">
+                {stats.available_tests.map((t, i) => (
+                  <div
+                    key={t.title || i}
+                    className="border border-[#E1E7EF] rounded-xl p-4 hover:bg-gray-50/50 transition"
+                  >
+                    <h3 className="font-semibold text-[#0F1729]">{t.title}</h3>
+                    <p className="text-[#65758B] text-sm mt-1">
+                      Total Duration: {t.durationMinutes ?? 180} Minutes
+                    </p>
+                    <p className="text-[#65758B] text-sm">
+                      Total Questions: {t.totalQuestions ?? 500}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[#65758B]">
+                No tests assigned yet. Purchase a package to unlock tests.
+              </p>
+            )}
 
-            <button className="secondary-btn w-full mt-4 border-[2px] !border-[#188B8B] text-teal-600 py-2 !rounded-[14px] !text-[#188B8B] font-[500]">
+            <Link
+              to="/test"
+              className="block w-full mt-6 border-2 border-[#188B8B] text-[#188B8B] py-2.5 rounded-[14px] font-medium text-center hover:bg-teal-50 transition"
+            >
               Browse More Tests
-            </button>
+            </Link>
           </div>
 
+          {/* Right Column */}
           <div className="space-y-6">
-            {/* Career Matches */}
-            <div className="bg-white custom_dropshadow rounded-xl p-6">
-              <h2 className="!text-[18px] font-semibold">Top Career Matches</h2>
-              <p className="!text-[14px] mb-4">Based on your results</p>
+            {/* Top Career Matches */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-[#0F1729]">Top Career Matches</h2>
+              <p className="text-sm text-[#65758B] mb-4">Based on your results</p>
 
-              <div className="space-y-3">
-                <div className="bg-teal-50 p-3 rounded-[12px] flex items-center gap-3">
-                  <img src={di3} className="w-[32px] !h-fit" />
-                  <span>
-                    <p className="!text-[14px] font-semibold text-[#0F1729] leading-3">
-                      Data Scientist
-                    </p>
-                    <p className="!text-[12px] text-[#65758B]">95% match</p>
-                  </span>
+              {stats.top_careers && stats.top_careers.length > 0 ? (
+                <div className="space-y-3">
+                  {stats.top_careers.map((c, index) => {
+                    const icon = careerIcons[index % careerIcons.length];
+                    return (
+                      <div
+                        key={c.title + index}
+                        className="bg-teal-50 p-3 rounded-xl flex items-center gap-3 border border-teal-100"
+                      >
+                        <img src={icon} alt="" className="w-10 h-10 object-contain" />
+                        <div>
+                          <p className="text-sm font-semibold text-[#0F1729]">{c.title}</p>
+                          <p className="text-xs text-[#65758B]">
+                            {(c.matchPercent ?? c.match ?? 0)}% match
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+              ) : (
+                <p className="text-sm text-[#65758B]">
+                  Complete your tests to see personalized career matches here.
+                </p>
+              )}
 
-                <div className="bg-teal-50 p-3 rounded-[12px] flex items-center gap-3">
-                  <img src={di2} className="w-[32px] !h-fit" />
-                  <span>
-                    <p className="!text-[14px] font-semibold text-[#0F1729] leading-3">
-                      UX Designer
-                    </p>
-                    <p className="!text-[12px] text-[#65758B]">89% match</p>
-                  </span>
-                </div>
-
-                <div className="bg-teal-50 p-3 rounded-[12px] flex items-center gap-3">
-                  <img src={di1} className="w-[32px] h-fit" />
-                  <span>
-                    <p className="!text-[14px] font-semibold text-[#0F1729] leading-3">
-                      Business Analyst
-                    </p>
-                    <p className="!text-[12px] text-[#65758B]">87% match</p>
-                  </span>
-                </div>
-              </div>
-
-              <button className="w-full mt-4 text-teal-600 font-medium hover:underline text-center">
+              <Link
+                to="/result"
+                className="block w-full mt-4 text-[#188B8B] font-medium text-center hover:underline"
+              >
                 View All Matches →
-              </button>
+              </Link>
             </div>
 
-            {/* Counselling */}
-            <div className="bg-white custom_dropshadow rounded-xl p-6">
-              <h2 className="!text-[18px] font-semibold mb-2">
-                Book Counselling
-              </h2>
-              <p className="!text-[14px] mb-4">Get expert guidance</p>
-              <p className="text-gray-500 !text-[14px] mb-4">
-                Schedule a one-on-one session with our psychologists
+            {/* Book Counselling */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-[#0F1729] mb-2">Book Counselling</h2>
+              <p className="text-sm text-[#65758B] mb-2">Get expert guidance</p>
+              <p className="text-sm text-gray-500 mb-4">
+                Schedule a one-on-one session with our psychologists to discuss your results.
               </p>
 
-              <button className="flex items-center justify-center gap-2 primary-btn w-full bg-yellow-500 text-white font-semibold py-2 rounded-lg hover:bg-yellow-600">
-                <IoCalendarClearOutline />
+              <Link
+                to="/bookcounselling"
+                className="flex items-center justify-center gap-2 w-full bg-amber-500 text-[#0F1729] font-semibold py-2.5 rounded-lg hover:bg-amber-600 transition"
+              >
+                <Calendar size={18} />
                 <span>Book Session</span>
-              </button>
+              </Link>
             </div>
 
-            {/* Help */}
-            <div className="bg-white custom_dropshadow rounded-xl p-6">
-              <h2 className="text-xl font-semibold mb-4">Need Help?</h2>
+            {/* Need Help */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-[#0F1729] mb-4">Need Help?</h2>
 
-              <button className="px-5 flex items-center gap-2 secondary-btn text-left w-full border border-gray-300 py-2 rounded-lg mb-2 font-medium hover:bg-gray-50">
-                <IoDocumentTextOutline />
+              <button
+                type="button"
+                className="flex items-center gap-2 w-full px-4 py-2.5 border border-gray-200 rounded-lg text-left font-medium text-[#0F1729] hover:bg-gray-50 transition mb-2"
+              >
+                <HelpCircle size={18} />
                 <span>Help Center</span>
               </button>
 
-              <button className="px-5 flex items-center gap-2 secondary-btn text-left w-full border border-gray-300 py-2 rounded-lg font-medium hover:bg-gray-50">
-                <IoVideocamOutline />
+              <button
+                type="button"
+                className="flex items-center gap-2 w-full px-4 py-2.5 border border-gray-200 rounded-lg text-left font-medium text-[#0F1729] hover:bg-gray-50 transition"
+              >
+                <Video size={18} />
                 <span>Video Tutorials</span>
               </button>
             </div>
           </div>
         </div>
       </div>
-
-    </>
   );
 };
 

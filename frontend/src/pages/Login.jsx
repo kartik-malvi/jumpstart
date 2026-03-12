@@ -1,12 +1,11 @@
 import React, { useState, useContext, useEffect } from "react";
 import logo from "../assets/logo.png";
 import Header from "../components/Header";
-import Footer from "../components/footer";
+import Footer from "../components/Footer";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
-const GOOGLE_CLIENT_ID =
-  "773594743314-9n0eb71lufvvh4utldar312r8meh2mji.apps.googleusercontent.com"; // your client ID
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 export default function Login() {
   const { login, loginWithGoogle } = useContext(AuthContext);
@@ -37,6 +36,11 @@ export default function Login() {
   // LOAD & INITIALIZE GOOGLE BUTTON
   // ------------------------------------------------
   useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      setError("Google login is not configured");
+      return;
+    }
+
     const loadScript = () => {
       return new Promise((resolve, reject) => {
         // If already loaded

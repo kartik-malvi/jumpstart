@@ -1,6 +1,7 @@
 import fi1 from '../assets/fi1.png'
 import fi2 from '../assets/fi2.png'
 import fi3 from '../assets/fi3.png'
+import { Link } from 'react-router-dom';
 export default function Footer() {
   return (
     <footer className="bg-[#0B0C0E] text-white pt-14 pb-6">
@@ -23,10 +24,10 @@ export default function Footer() {
         <div>
           <h4 className="text-sm font-semibold mb-4">Quick Links</h4>
           <ul className="space-y-2 text-white text-sm">
-            <li>Home</li>
-            <li>Test Packages</li>
-            <li>Dashboard</li>
-            <li>Results</li>
+            <li><Link to="/">Home</Link></li>
+            <li><Link to="/test">Test Packages</Link></li>
+            <li><Link to="/dashboard">Dashboard</Link></li>
+            <li><Link to="/result">Results</Link></li>
           </ul>
         </div>
 

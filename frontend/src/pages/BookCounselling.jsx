@@ -102,7 +102,7 @@ const BookCounselling = () => {
   };
 
   return (
-    <div className="min-h-[100svh] px-4 py-8 md:py-12">
+    <div className="min-h-[100svh] bg-[#fafafa] px-4 py-8 md:py-12">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-[#0F1729]">

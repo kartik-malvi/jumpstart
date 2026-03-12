@@ -46,7 +46,7 @@ export default function Header() {
             <Link to="/dashboard" className="text-sm font-semibold text-gray-900">
               Dashboard
             </Link>
-            <a href="#" className="text-sm font-semibold text-gray-900">
+            <a href="/result" className="text-sm font-semibold text-gray-900">
               Results
             </a>
           </PopoverGroup>
