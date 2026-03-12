@@ -10,7 +10,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const { loginWithGoogle } = useContext(AuthContext);
+  const { login, loginWithGoogle } = useContext(AuthContext);
 
   const [form, setForm] = useState({
     name: "",
@@ -97,8 +97,9 @@ export default function Signup() {
       console.log("REGISTER RESPONSE:", data);
 
       if (data.success) {
+        await login({ email: form.email, password: form.password });
         setMsg("Signup successful!");
-        setTimeout(() => navigate("/login"), 500);
+        setTimeout(() => navigate("/dashboard"), 300);
       } else {
         setMsg(data.message || "Signup failed");
       }

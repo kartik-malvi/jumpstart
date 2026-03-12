@@ -7,11 +7,18 @@ import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 
 const PORT = process.env.PORT || 5000;
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "";
 
 connectDB();
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+app.set("trust proxy", 1);
+app.use(
+  cors({
+    origin: CLIENT_ORIGIN ? CLIENT_ORIGIN.split(",").map((item) => item.trim()) : true,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Root – so visiting http://localhost:5000/ shows API is up
