@@ -2,6 +2,7 @@ import { LIVETEST_QUESTIONS, SECTIONS } from "../data/livetestQuestions";
 
 const SELECTED_SECTIONS_KEY = "selected_test_sections";
 const COMPLETED_SECTIONS_KEY = "completed_test_sections";
+const SELECTED_PACKAGE_KEY = "selected_test_package";
 const defaultSections = SECTIONS.map((section, idx) => ({
   id: section.id,
   name: section.title,
@@ -68,6 +69,16 @@ export const saveCompletedSectionIds = (ids) => {
 export const clearCompletedSectionIds = () => {
   if (!canUseStorage()) return;
   localStorage.removeItem(COMPLETED_SECTIONS_KEY);
+};
+
+export const getSelectedPackageId = () => {
+  if (!canUseStorage()) return null;
+  return localStorage.getItem(SELECTED_PACKAGE_KEY);
+};
+
+export const saveSelectedPackageId = (id) => {
+  if (!canUseStorage() || !id) return;
+  localStorage.setItem(SELECTED_PACKAGE_KEY, String(id));
 };
 
 export const getSelectedSections = (activePackage) => {

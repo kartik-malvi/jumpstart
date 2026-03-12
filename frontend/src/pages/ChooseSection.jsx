@@ -39,7 +39,7 @@ const ChooseSection = () => {
 
           <div className="mt-6 space-y-3">
             {sections.map((section) => {
-              const active = Number(firstSectionId) === Number(section.id);
+              const active = String(firstSectionId) === String(section.id);
               return (
                 <button
                   type="button"

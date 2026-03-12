@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Download, Percent, Plus, TrendingDown, TrendingUp, X } from "lucide-react";
 import {
   Area,
@@ -71,6 +71,8 @@ const AdminDashboard = () => {
   const [couponForm, setCouponForm] = useState(initialCouponForm);
   const [actionError, setActionError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [clearingLogs, setClearingLogs] = useState(false);
+  const [selectedLogIds, setSelectedLogIds] = useState([]);
 
   const growthData = useMemo(
     () => (data.analytics?.monthlySeries || []).map((row) => ({ name: row.name, value: row.userGrowth || 0 })),
@@ -93,6 +95,11 @@ const AdminDashboard = () => {
     setActionError("");
     setActionLoading(false);
   };
+
+  useEffect(() => {
+    const validIds = new Set((data.recentActivity || []).map((row) => row.id));
+    setSelectedLogIds((prev) => prev.filter((id) => validIds.has(id)));
+  }, [data.recentActivity]);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -149,10 +156,68 @@ const AdminDashboard = () => {
     ]);
   };
 
+  const handleClearActivityLogs = async () => {
+    if (clearingLogs || data.recentActivity.length === 0) return;
+
+    const confirmed = window.confirm("Clear all activity logs from the admin dashboard?");
+    if (!confirmed) return;
+
+    setClearingLogs(true);
+    setActionError("");
+    try {
+      await api.delete("/v1/admin/activity-logs");
+      await refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to clear activity logs");
+    } finally {
+      setClearingLogs(false);
+    }
+  };
+
+  const handleToggleLog = (id) => {
+    setSelectedLogIds((prev) => (
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    ));
+  };
+
+  const handleToggleAllLogs = () => {
+    const allIds = (data.recentActivity || []).map((row) => row.id);
+    setSelectedLogIds((prev) => (prev.length === allIds.length ? [] : allIds));
+  };
+
+  const handleDeleteSelectedLogs = async () => {
+    if (clearingLogs || selectedLogIds.length === 0) return;
+
+    const confirmed = window.confirm(`Delete ${selectedLogIds.length} selected activity log(s)?`);
+    if (!confirmed) return;
+
+    setClearingLogs(true);
+    setActionError("");
+    try {
+      const logs = (data.recentActivity || [])
+        .filter((row) => selectedLogIds.includes(row.id))
+        .map((row) => ({
+          userId: row.userId,
+          date: row.date,
+        }));
+
+      await api.post("/v1/admin/activity-logs/delete-selected", { logs });
+      setSelectedLogIds([]);
+      await refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to delete selected activity logs");
+    } finally {
+      setClearingLogs(false);
+    }
+  };
+
+  const allActivityIds = (data.recentActivity || []).map((row) => row.id);
+  const allLogsSelected = allActivityIds.length > 0 && selectedLogIds.length === allActivityIds.length;
+
   return (
     <main className="p-6 md:p-8 max-w-[1440px] mx-auto w-full flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+        <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Dashboard Overview</h1>
         <p className="text-gray-400 mt-1">Auto-refreshing every 5 seconds</p>
         {error && <p className="text-xs text-rose-500 mt-2">{error}</p>}
       </div>
@@ -213,12 +278,69 @@ const AdminDashboard = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-        <div className="p-6 border-b">
-          <h3 className="text-lg font-bold">Recent Activity</h3>
+        <div className="p-6 border-b flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-bold">Recent Activity</h3>
+            {actionError && <p className="text-xs text-rose-500 mt-1">{actionError}</p>}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleDeleteSelectedLogs}
+              disabled={clearingLogs || selectedLogIds.length === 0}
+              className="inline-flex items-center justify-center rounded-xl border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-white"
+            >
+              {clearingLogs && selectedLogIds.length > 0 ? "Deleting..." : `Delete Selected${selectedLogIds.length ? ` (${selectedLogIds.length})` : ""}`}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearActivityLogs}
+              disabled={clearingLogs || data.recentActivity.length === 0}
+              className="inline-flex items-center justify-center rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-white"
+            >
+              {clearingLogs && selectedLogIds.length === 0 ? "Clearing..." : "Clear All Logs"}
+            </button>
+          </div>
         </div>
-        <table className="w-full text-sm">
+        <div className="space-y-3 p-4 sm:hidden">
+          {loading ? (
+            <div className="rounded-2xl border border-gray-100 px-4 py-6 text-center text-gray-400">Loading...</div>
+          ) : data.recentActivity.length === 0 ? (
+            <div className="rounded-2xl border border-gray-100 px-4 py-6 text-center text-gray-400">No activity yet</div>
+          ) : (
+            data.recentActivity.map((row) => (
+              <div key={row.id} className="rounded-2xl border border-gray-100 p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedLogIds.includes(row.id)}
+                    onChange={() => handleToggleLog(row.id)}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-[#14b8a6] focus:ring-[#14b8a6]"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-gray-900 break-words">{row.user}</p>
+                      <StatusBadge status={row.status} />
+                    </div>
+                    <p className="mt-2 text-sm text-gray-700 break-words">{row.action}</p>
+                    <p className="mt-2 text-xs text-gray-400">{timeAgo(row.date)}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <table className="hidden w-full text-sm sm:table">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 text-left text-gray-400 uppercase">
+                <input
+                  type="checkbox"
+                  checked={allLogsSelected}
+                  onChange={handleToggleAllLogs}
+                  className="h-4 w-4 rounded border-gray-300 text-[#14b8a6] focus:ring-[#14b8a6]"
+                />
+              </th>
               <th className="px-6 py-3 text-left text-gray-400 uppercase">Time</th>
               <th className="px-6 py-3 text-left text-gray-400 uppercase">User</th>
               <th className="px-6 py-3 text-left text-gray-400 uppercase">Action</th>
@@ -228,15 +350,23 @@ const AdminDashboard = () => {
           <tbody className="divide-y">
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-6 py-6 text-center text-gray-400">Loading...</td>
+                <td colSpan={5} className="px-6 py-6 text-center text-gray-400">Loading...</td>
               </tr>
             ) : data.recentActivity.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-6 text-center text-gray-400">No activity yet</td>
+                <td colSpan={5} className="px-6 py-6 text-center text-gray-400">No activity yet</td>
               </tr>
             ) : (
               data.recentActivity.map((row) => (
                 <tr key={row.id}>
+                  <td className="px-6 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedLogIds.includes(row.id)}
+                      onChange={() => handleToggleLog(row.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-[#14b8a6] focus:ring-[#14b8a6]"
+                    />
+                  </td>
                   <td className="px-6 py-4 text-gray-500">{timeAgo(row.date)}</td>
                   <td className="px-6 py-4 font-semibold">{row.user}</td>
                   <td className="px-6 py-4">{row.action}</td>

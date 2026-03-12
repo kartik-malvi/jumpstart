@@ -56,7 +56,7 @@ const Livetest = () => {
   const sectionIds = selectedSections.map((s) => String(s.id));
   const defaultSectionId = selectedSections.find((s) => !completedIds.includes(s.id))?.id || selectedSections[0]?.id;
 
-  const resolvedSectionId = sectionIds.includes(String(sectionIdParam)) ? Number(sectionIdParam) : defaultSectionId;
+  const resolvedSectionId = sectionIds.includes(String(sectionIdParam)) ? String(sectionIdParam) : defaultSectionId;
 
   useEffect(() => {
     if (!resolvedSectionId) {
@@ -68,7 +68,7 @@ const Livetest = () => {
     }
   }, [sectionIdParam, resolvedSectionId, navigate]);
 
-  const section = selectedSections.find((s) => s.id === resolvedSectionId);
+  const section = selectedSections.find((s) => String(s.id) === String(resolvedSectionId));
   const questions = section?.questions || [];
   const questionsInSection = questions.length;
   const [currentQIdx, setCurrentQIdx] = useState(0);
@@ -84,11 +84,11 @@ const Livetest = () => {
 
   const totalQuestions = selectedSections.reduce((sum, s) => sum + (s.questions?.length || 0), 0);
   const completedQuestions = selectedSections
-    .filter((s) => completedIds.includes(s.id) && s.id !== resolvedSectionId)
+    .filter((s) => completedIds.includes(String(s.id)) && String(s.id) !== String(resolvedSectionId))
     .reduce((sum, s) => sum + (s.questions?.length || 0), 0);
 
   const key = (s, q) => `${s}-${q}`;
-  const currentAnswer = answers[key(resolvedSectionId, currentQIdx)];
+  const currentAnswer = answers[key(String(resolvedSectionId), currentQIdx)];
 
   useEffect(() => {
     if (!section) return;
@@ -99,7 +99,7 @@ const Livetest = () => {
         const d = res?.data?.data;
         if (d?.answers && typeof d.answers === "object") setAnswers(d.answers);
 
-        if (Number(d?.sectionId) === Number(resolvedSectionId)) {
+        if (String(d?.sectionId) === String(resolvedSectionId)) {
           if (typeof d?.questionIndex === "number" && d.questionIndex >= 0) {
             setCurrentQIdx(Math.min(d.questionIndex, Math.max(0, questionsInSection - 1)));
           }
@@ -138,7 +138,7 @@ const Livetest = () => {
     (payload = {}) => {
       setSaving(true);
       const body = {
-        sectionId: resolvedSectionId,
+        sectionId: String(resolvedSectionId),
         questionIndex: currentQIdx,
         answers,
         timeRemainingSeconds: timeRemaining,
@@ -156,12 +156,12 @@ const Livetest = () => {
   );
 
   const handleOptionSelect = (value) => {
-    const newAnswers = { ...answers, [key(resolvedSectionId, currentQIdx)]: value };
+    const newAnswers = { ...answers, [key(String(resolvedSectionId), currentQIdx)]: value };
     setAnswers(newAnswers);
     setSaving(true);
     api
       .patch("/v1/user/test-progress", {
-        sectionId: resolvedSectionId,
+        sectionId: String(resolvedSectionId),
         questionIndex: currentQIdx,
         answers: newAnswers,
         timeRemainingSeconds: timeRemaining,
@@ -192,7 +192,7 @@ const Livetest = () => {
 
       questionsList.forEach((q, idx) => {
         const qq = getQuestionMeta(q);
-        const ans = answers[`${s.id}-${idx}`];
+        const ans = answers[`${String(s.id)}-${idx}`];
         if (ans == null) return;
 
         let points = 0;
@@ -255,7 +255,7 @@ const Livetest = () => {
     setSaving(true);
     api
       .post("/v1/user/test-submit", {
-        sectionId: resolvedSectionId,
+        sectionId: String(resolvedSectionId),
         answers,
         timeRemainingSeconds: timeRemaining,
         scoring: {
@@ -283,10 +283,10 @@ const Livetest = () => {
 
     saveProgress({ questionIndex: currentQIdx });
 
-    const updatedCompleted = Array.from(new Set([...completedIds, resolvedSectionId]));
+    const updatedCompleted = Array.from(new Set([...completedIds, String(resolvedSectionId)]));
     saveCompletedSectionIds(updatedCompleted);
 
-    const remainingSections = selectedSections.filter((s) => !updatedCompleted.includes(s.id));
+    const remainingSections = selectedSections.filter((s) => !updatedCompleted.includes(String(s.id)));
 
     if (remainingSections.length === 0) {
       submitTest();
@@ -295,7 +295,7 @@ const Livetest = () => {
 
     const timeElapsedSeconds = (section.durationMinutes * 60) - timeRemaining;
     const questionsSoFar = selectedSections
-      .filter((s) => updatedCompleted.includes(s.id))
+      .filter((s) => updatedCompleted.includes(String(s.id)))
       .reduce((sum, s) => sum + (s.questions?.length || 0), 0);
 
     navigate("/sectionbreak", {
@@ -326,7 +326,9 @@ const Livetest = () => {
     );
   }
 
-  const willHaveRemaining = selectedSections.some((s) => !completedIds.includes(s.id) && s.id !== resolvedSectionId);
+  const willHaveRemaining = selectedSections.some(
+    (s) => !completedIds.includes(String(s.id)) && String(s.id) !== String(resolvedSectionId)
+  );
 
   return (
     <div className="min-h-screen bg-[#fafafa] px-4 sm:px-6 md:px-8 py-6">

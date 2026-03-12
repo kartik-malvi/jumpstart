@@ -5,6 +5,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import { getActivePackage, getPublicPackages } from "./controllers/packageController.js";
 
 const PORT = process.env.PORT || 5000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "";
@@ -40,6 +41,9 @@ app.get("/", (req, res) => {
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, message: "Jumpstart API running" });
 });
+
+app.get("/api/v1/packages/active", getActivePackage);
+app.get("/api/v1/packages/public", getPublicPackages);
 
 // Mount routes under /api/v1/user
 app.use("/api/v1/user/auth", authRoutes);

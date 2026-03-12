@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Search, ChevronDown, MoreVertical } from "lucide-react";
+import { Search, ChevronDown, MoreVertical, Trash2 } from "lucide-react";
+import api from "../../api/api";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { formatDateTime } from "../../utils/adminFormat";
 
@@ -27,7 +28,10 @@ const TestSubmissions = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  const { data, loading } = useAdminLiveData(5000);
+  const [deletingId, setDeletingId] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [activeMenu, setActiveMenu] = useState("");
+  const { data, loading, refetch } = useAdminLiveData(5000);
 
   const filteredData = useMemo(() => {
     return (data.submissions || []).filter((row) => {
@@ -42,11 +46,31 @@ const TestSubmissions = () => {
     });
   }, [data.submissions, search, statusFilter, typeFilter]);
 
+  const handleDeleteSubmission = async (row) => {
+    if (deletingId) return;
+
+    const confirmed = window.confirm(`Delete submission for ${row.name}?`);
+    if (!confirmed) return;
+
+    setActiveMenu("");
+    setDeletingId(row.id);
+    setActionError("");
+    try {
+      await api.delete(`/v1/admin/submissions/${row.id}`);
+      await refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to delete submission");
+    } finally {
+      setDeletingId("");
+    }
+  };
+
   return (
     <div className="p-6 md:p-8 max-w-[1440px] mx-auto w-full flex flex-col gap-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold text-gray-900">Test Submissions</h1>
         <p className="text-gray-400 text-sm">Review and manage student test submissions</p>
+        {actionError && <p className="text-xs text-rose-500 mt-2">{actionError}</p>}
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -142,10 +166,29 @@ const TestSubmissions = () => {
                       <StatusBadge status={row.status} />
                     </td>
 
-                    <td className="px-6 py-5 text-right">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+                    <td className="px-6 py-5 text-right relative">
+                      <button
+                        type="button"
+                        onClick={() => setActiveMenu((current) => (current === row.id ? "" : row.id))}
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                      >
                         <MoreVertical size={18} />
                       </button>
+                      {activeMenu === row.id && (
+                        <div className="absolute right-6 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-10 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSubmission(row)}
+                            disabled={deletingId === row.id}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-white"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <Trash2 size={14} />
+                              {deletingId === row.id ? "Deleting..." : "Delete submission"}
+                            </span>
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

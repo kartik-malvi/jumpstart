@@ -33,21 +33,21 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-30 shadow-sm">
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center justify-between gap-3 bg-white border-b border-gray-100 px-4 py-3 md:px-6 shadow-sm">
+      <div className="flex min-w-0 items-center gap-3 md:gap-4">
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="p-2 text-gray-500 hover:bg-gray-50 rounded-md transition-colors"
         >
           <Menu size={20} />
         </button>
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.3em] text-gray-400">Service</p>
-          <h1 className="text-sm font-bold text-gray-900">Jumpstart Admin</h1>
+          <h1 className="truncate text-sm font-bold text-gray-900">Jumpstart Admin</h1>
         </div>
       </div>
 
-      <div className="relative" ref={profileRef}>
+      <div className="relative ml-auto" ref={profileRef}>
         <button
           className="flex items-center gap-2 cursor-pointer group"
           onClick={() => setShowProfileDropdown((open) => !open)}

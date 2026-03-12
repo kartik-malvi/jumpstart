@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ChevronDown, MoreVertical, Search, X } from "lucide-react";
+import { ChevronDown, MoreVertical, Search, Trash2, X } from "lucide-react";
 import api from "../../api/api";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { timeAgo } from "../../utils/adminFormat";
@@ -56,6 +56,7 @@ const UserManagement = () => {
   const [password, setPassword] = useState("");
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState("");
   const { data, loading, refetch } = useAdminLiveData(5000);
 
   const filteredUsers = useMemo(() => {
@@ -133,6 +134,23 @@ const UserManagement = () => {
     } catch (err) {
       setActionError(err?.response?.data?.msg || "Failed to reset password");
       setSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    const confirmed = window.confirm(`Delete user ${user.name}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setActiveMenu("");
+    setDeletingUserId(user.id);
+    setActionError("");
+    try {
+      await api.delete(`/v1/admin/users/${user.id}`);
+      await refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to delete user");
+    } finally {
+      setDeletingUserId("");
     }
   };
 
@@ -250,6 +268,16 @@ const UserManagement = () => {
                           </button>
                           <button onClick={() => handleQuickStatusToggle(user)} className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50">
                             {user.status === "Active" ? "Suspend user" : "Activate user"}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            disabled={deletingUserId === user.id}
+                            className="w-full px-4 py-3 text-left text-sm text-rose-600 hover:bg-rose-50 disabled:text-slate-400 disabled:hover:bg-white"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <Trash2 size={14} />
+                              {deletingUserId === user.id ? "Deleting..." : "Delete user"}
+                            </span>
                           </button>
                         </div>
                       )}

@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from "react";
-import { Search, ChevronDown, Download, MoreVertical } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Search, ChevronDown, Download, MoreVertical, ExternalLink } from "lucide-react";
+import api from "../../api/api";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { formatDateTime } from "../../utils/adminFormat";
+import { openResultReportPdf, openResultReportPreview } from "../../utils/resultReport";
 
 const PercentileBadge = ({ value }) => (
   <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-[#14b8a6] text-white">{value}</span>
@@ -14,6 +16,9 @@ const TestTypeBadge = ({ type }) => (
 const PublishedResults = () => {
   const [search, setSearch] = useState("");
   const [testType, setTestType] = useState("");
+  const [activeMenu, setActiveMenu] = useState("");
+  const [loadingReportId, setLoadingReportId] = useState("");
+  const [actionError, setActionError] = useState("");
   const { data, loading } = useAdminLiveData(5000);
 
   const filteredResults = useMemo(() => {
@@ -26,11 +31,45 @@ const PublishedResults = () => {
     });
   }, [data.publishedResults, search, testType]);
 
+  const fetchReport = async (userId) => {
+    const res = await api.get(`/v1/admin/results/${userId}`);
+    return res?.data?.data;
+  };
+
+  const handleDownload = async (row) => {
+    setActionError("");
+    setLoadingReportId(row.id);
+    try {
+      const report = await fetchReport(row.id);
+      openResultReportPdf(report);
+      setActiveMenu("");
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to download report");
+    } finally {
+      setLoadingReportId("");
+    }
+  };
+
+  const handlePreview = async (row) => {
+    setActionError("");
+    setLoadingReportId(row.id);
+    try {
+      const report = await fetchReport(row.id);
+      openResultReportPreview(report);
+      setActiveMenu("");
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to open report");
+    } finally {
+      setLoadingReportId("");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 max-w-[1440px] mx-auto font-['Inter'] p-6 md:p-8 w-full">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Published Results</h1>
         <p className="text-gray-400 text-sm">Manage published test results and student queries</p>
+        {actionError && <p className="text-xs text-rose-500 mt-2">{actionError}</p>}
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -60,8 +99,8 @@ const PublishedResults = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-visible">
+        <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-50 bg-gray-50/20">
@@ -112,15 +151,50 @@ const PublishedResults = () => {
                     </td>
 
                     <td className="px-6 py-5 text-center">
-                      <button className="p-2 text-gray-400 hover:text-[#14b8a6] hover:bg-teal-50 rounded-lg transition-all">
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(row)}
+                        disabled={loadingReportId === row.id}
+                        className="p-2 text-gray-400 hover:text-[#14b8a6] hover:bg-teal-50 rounded-lg transition-all disabled:cursor-not-allowed disabled:text-gray-300"
+                      >
                         <Download size={18} />
                       </button>
                     </td>
 
-                    <td className="px-6 py-5 text-right">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+                    <td className="px-6 py-5 text-right relative overflow-visible">
+                      <button
+                        type="button"
+                        onClick={() => setActiveMenu((current) => (current === row.id ? "" : row.id))}
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                      >
                         <MoreVertical size={18} />
                       </button>
+                      {activeMenu === row.id && (
+                        <div className="absolute right-6 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => handlePreview(row)}
+                            disabled={loadingReportId === row.id}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-white"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <ExternalLink size={14} />
+                              {loadingReportId === row.id ? "Loading..." : "Open report"}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(row)}
+                            disabled={loadingReportId === row.id}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-white"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <Download size={14} />
+                              {loadingReportId === row.id ? "Loading..." : "Download PDF"}
+                            </span>
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -285,10 +285,14 @@ function computeResultFromScoring(scoring) {
   const overallScore = Math.max(0, Math.min(100, Math.round((obtainedMarks / totalMarks) * 100)));
   const sectionScores = Array.isArray(scoring.sectionScores) ? scoring.sectionScores : [];
   const testResults = sectionScores.map((s) => ({
+    sectionId: s.sectionId ?? null,
+    sectionName: s.sectionName || `Section ${s.sectionId}`,
     testName: s.sectionName || `Section ${s.sectionId}`,
     completedAt: new Date(),
     score: Number(s.obtainedMarks) || 0,
     maxScore: Number(s.totalMarks) || 0,
+    percentage: Number(s.percentage) || 0,
+    dimensionScores: Array.isArray(s.dimensionScores) ? s.dimensionScores : [],
     reportUrl: "",
   }));
 

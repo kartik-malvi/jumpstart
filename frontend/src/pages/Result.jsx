@@ -7,7 +7,7 @@ import prsonIcon from "../assets/prson.svg";
 import categIcon from "../assets/categ.svg";
 import fitIcon from "../assets/fit.svg";
 import SchduleIcon from "../assets/schdule.svg";
-import { SECTIONS } from "../data/livetestQuestions";
+import { buildResultReportModel, openResultReportPdf, openResultReportPreview } from "../utils/resultReport";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -29,6 +29,22 @@ const getReadinessLabel = (score) => {
   if (score >= 60) return "Good career readiness";
   if (score >= 40) return "Moderate readiness";
   return "Keep building skills";
+};
+
+const formatSectionResult = (result, index) => {
+  const score = result?.score;
+  const maxScore = result?.maxScore;
+  const fallbackPercent =
+    maxScore > 0 && score != null ? Math.round((Number(score) / Number(maxScore)) * 100) : null;
+
+  return {
+    id: result?.sectionId || `section-${index + 1}`,
+    title: result?.sectionName || result?.testName || `Section ${index + 1}`,
+    score: score != null ? Number(score) : null,
+    maxScore: maxScore != null ? Number(maxScore) : null,
+    percentage: result?.percentage ?? fallbackPercent,
+    completedAt: result?.completedAt,
+  };
 };
 
 const Result = () => {
@@ -115,20 +131,15 @@ const Result = () => {
     const s = data.strengths && data.strengths[i];
     return { name: (s && s.name) || name, value: (s && s.value != null) ? s.value : defaultTraitValues[i] };
   });
-  const sectionResults = SECTIONS.map((sec) => {
-    const tr = (data.testResults || []).find((t) => t.sectionId === sec.id || t.sectionName === sec.title || (t.testName && t.testName.includes(sec.title)));
-    return {
-      ...sec,
-      score: tr?.score ?? null,
-      maxScore: tr?.maxScore ?? 100,
-      completedAt: tr?.completedAt,
-    };
+  const sectionResults = (data.testResults || []).map(formatSectionResult);
+
+  const reportModel = buildResultReportModel({
+    ...data,
+    generatedAt: new Date().toISOString(),
   });
 
-  const handlePrint = () => window.print();
-  const handleDownloadPdf = () => {
-    window.print();
-  };
+  const handlePrint = () => openResultReportPreview(reportModel);
+  const handleDownloadPdf = () => openResultReportPdf(reportModel);
 
   return (
     <div className="min-h-screen bg-[#fafafa] pb-16 sm:pb-20">
@@ -233,17 +244,22 @@ const Result = () => {
             <div className="bg-white rounded-xl border border-[#E1E7EF] p-5 shadow-sm">
               <h3 className="text-lg font-semibold text-[#0F1729] mb-4">Section Results</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {sectionResults.map((sec) => (
+                {sectionResults.length > 0 ? sectionResults.map((sec) => (
                   <div key={sec.id} className="border border-[#E1E7EF] rounded-lg p-4">
                     <p className="font-semibold text-[#0F1729]">{sec.title}</p>
                     <p className="text-sm text-[#65758B] mt-1">
-                      Score: {sec.score != null ? `${sec.score}/${sec.maxScore}` : "—"}
+                      Score: {sec.score != null && sec.maxScore != null ? `${sec.score}/${sec.maxScore}` : "—"}
                     </p>
+                    {sec.percentage != null && (
+                      <p className="text-sm text-[#188B8B] mt-1 font-medium">{sec.percentage}%</p>
+                    )}
                     {sec.completedAt && (
                       <p className="text-xs text-[#65758B] mt-1">Completed {formatDate(sec.completedAt)}</p>
                     )}
                   </div>
-                ))}
+                )) : (
+                  <p className="text-[#65758B]">No section scores available yet.</p>
+                )}
               </div>
             </div>
 

@@ -193,6 +193,7 @@ const buildAdminPayload = (users) => {
     .flatMap((u) =>
       (u.activities || []).map((a, idx) => ({
         id: `${u._id}-${idx}-${new Date(a.createdAt).getTime()}`,
+        userId: String(u._id),
         date: a.createdAt,
         user: u.name,
         action: a.action,
@@ -267,6 +268,181 @@ export const getLiveAdminData = async (req, res) => {
   } catch (err) {
     console.error("Admin live data error:", err);
     return res.status(500).json({ success: false, msg: err.message || "Failed to load admin data" });
+  }
+};
+
+export const clearAllActivityLogs = async (req, res) => {
+  try {
+    const result = await User.updateMany(
+      { activities: { $exists: true, $ne: [] } },
+      { $set: { activities: [] } }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        matchedCount: result.matchedCount ?? result.n ?? 0,
+        modifiedCount: result.modifiedCount ?? result.nModified ?? 0,
+      },
+    });
+  } catch (err) {
+    console.error("Clear activity logs error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to clear activity logs" });
+  }
+};
+
+export const deleteSelectedActivityLogs = async (req, res) => {
+  try {
+    const logs = Array.isArray(req.body?.logs) ? req.body.logs : [];
+    if (logs.length === 0) {
+      return res.status(400).json({ success: false, msg: "logs are required" });
+    }
+
+    const grouped = logs.reduce((acc, log) => {
+      const userId = String(log?.userId || "");
+      const date = log?.date ? new Date(log.date) : null;
+      if (!userId || !date || Number.isNaN(date.getTime())) return acc;
+      if (!acc[userId]) acc[userId] = [];
+      acc[userId].push(date.toISOString());
+      return acc;
+    }, {});
+
+    const userIds = Object.keys(grouped);
+    if (userIds.length === 0) {
+      return res.status(400).json({ success: false, msg: "No valid logs were provided" });
+    }
+
+    const users = await User.find({ _id: { $in: userIds } });
+    let modifiedCount = 0;
+
+    for (const user of users) {
+      const removableDates = new Set(grouped[String(user._id)] || []);
+      const originalLength = Array.isArray(user.activities) ? user.activities.length : 0;
+      user.activities = (user.activities || []).filter((activity) => {
+        const createdAt = activity?.createdAt ? new Date(activity.createdAt).toISOString() : null;
+        return !createdAt || !removableDates.has(createdAt);
+      });
+
+      if (user.activities.length !== originalLength) {
+        modifiedCount += originalLength - user.activities.length;
+        await user.save();
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        modifiedCount,
+      },
+    });
+  } catch (err) {
+    console.error("Delete selected activity logs error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to delete selected activity logs" });
+  }
+};
+
+export const deleteSubmissionByAdmin = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, msg: "User not found" });
+    }
+
+    user.resultProfile = {
+      overallScore: null,
+      overallPercentile: "",
+      completedTestsCount: 0,
+      totalTestsCount: 0,
+      careerPathwaysCount: 0,
+      testResults: [],
+      strengths: [],
+      careerRecommendations: [],
+      personalityType: null,
+    };
+    user.testsCompleted = 0;
+    user.testsInProgress = 0;
+    user.reportsReady = 0;
+    user.testProgress = {
+      sectionId: 1,
+      questionIndex: 0,
+      answers: {},
+      timeRemainingSeconds: null,
+      updatedAt: null,
+    };
+
+    pushActivity(user, {
+      action: `Submission deleted by admin ${req.user.email}`,
+      status: "Completed",
+      type: "other",
+    });
+
+    await user.save();
+
+    return res.status(200).json({ success: true, data: { userId: String(user._id) } });
+  } catch (err) {
+    console.error("Delete submission error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to delete submission" });
+  }
+};
+
+export const getPublishedResultByAdmin = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId)
+      .select("name email subscription resultProfile updatedAt")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ success: false, msg: "User not found" });
+    }
+
+    if (!user.resultProfile || user.resultProfile.overallScore == null) {
+      return res.status(404).json({ success: false, msg: "Published result not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        userId: String(user._id),
+        userName: user.name,
+        userEmail: user.email,
+        subscription: user.subscription || "Basic",
+        generatedAt: user.updatedAt || new Date(),
+        ...user.resultProfile,
+      },
+    });
+  } catch (err) {
+    console.error("Get published result error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to load published result" });
+  }
+};
+
+export const deleteUserByAdmin = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (String(req.user.id) === String(userId)) {
+      return res.status(400).json({ success: false, msg: "You cannot delete your own admin account" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, msg: "User not found" });
+    }
+
+    await User.deleteOne({ _id: userId });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        userId: String(userId),
+      },
+    });
+  } catch (err) {
+    console.error("Delete user error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to delete user" });
   }
 };
 

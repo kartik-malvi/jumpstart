@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, Download, Mail, X } from 'lucide-react';
+import { Bell, Download, Mail, MoreVertical, X } from 'lucide-react';
 import api from '../../api/api';
 import DEFAULT_PACKAGE, {
   getAnswerKeyTemplateCsv,
@@ -17,7 +17,7 @@ const StatusBadge = ({ status }) => (
 const SettingsTab = ({ label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 px-8 py-2 rounded-lg text-sm font-bold transition-all ${
+    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all sm:px-6 ${
       active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
     }`}
   >
@@ -26,23 +26,23 @@ const SettingsTab = ({ label, active, onClick }) => (
 );
 
 const SectionHeader = ({ title, subtitle, actionLabel, onAction, secondaryLabel, secondaryAction }) => (
-  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-    <div className="flex flex-col">
+  <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex min-w-0 flex-col">
       <h3 className="text-xl font-bold text-gray-900">{title}</h3>
       <p className="text-gray-400 text-sm mt-0.5">{subtitle}</p>
     </div>
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
       {secondaryLabel && secondaryAction && (
         <button
           onClick={secondaryAction}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm border border-[#f59e0b] text-[#f59e0b] bg-white hover:bg-[#fef6eb]"
+          className="flex w-full items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm border border-[#f59e0b] text-[#f59e0b] bg-white hover:bg-[#fef6eb] sm:w-auto"
         >
           {secondaryLabel}
         </button>
       )}
       <button
         onClick={onAction}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm bg-[#f59e0b] hover:bg-[#d97706] text-white"
+        className="flex w-full items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm bg-[#f59e0b] hover:bg-[#d97706] text-white sm:w-auto"
       >
         {actionLabel}
       </button>
@@ -104,6 +104,7 @@ const provideNewPackageForm = () => ({
 
 const Settings = () => {
   const {
+    packages,
     coupons: contextCoupons,
     mailLists,
     activePackage: contextActivePackage,
@@ -121,6 +122,7 @@ const Settings = () => {
   const activePackage = contextActivePackage || DEFAULT_PACKAGE;
   const [packageForm, setPackageForm] = useState(activePackage);
   const [packageModalMode, setPackageModalMode] = useState('edit');
+  const [activePackageMenu, setActivePackageMenu] = useState('');
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordMessage, setPasswordMessage] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -144,9 +146,10 @@ const Settings = () => {
     setIsPackageModalOpen(true);
   };
 
-  const openEditPackageModal = () => {
+  const openEditPackageModal = (pkg = activePackage) => {
+    setActivePackageMenu('');
     setPackageModalMode('edit');
-    setPackageForm(activePackage);
+    setPackageForm(pkg);
     setSheetRowsInput('');
     setIsPackageModalOpen(true);
   };
@@ -367,6 +370,44 @@ const Settings = () => {
     }
   };
 
+  const handleTogglePackageVisibility = async (pkg) => {
+    try {
+      await api.post("/v1/admin/packages", {
+        id: pkg._id || pkg.id,
+        name: pkg.name,
+        priceLabel: pkg.priceLabel || pkg.displayPrice || pkg.price,
+        price: pkg.price,
+        displayPrice: pkg.displayPrice || pkg.priceLabel || pkg.price,
+        features: pkg.features || '',
+        description: pkg.description || '',
+        pdfQuestion: pkg.pdfQuestion || DEFAULT_PACKAGE.questionPdf,
+        answerKeyPdf: pkg.answerKeyPdf || DEFAULT_PACKAGE.answerKeyPdf,
+        sections: pkg.sections || [],
+        isActive: !pkg.isActive,
+        status: "Active",
+      });
+      refresh();
+    } catch (err) {
+      console.error("Failed to update package visibility", err);
+    }
+  };
+
+  const handleDeletePackage = async (pkg) => {
+    if (!pkg?._id && !pkg?.id) return;
+    if (pkg?.isDefault) return;
+
+    const confirmed = window.confirm(`Delete package ${pkg.name}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      setActivePackageMenu('');
+      await api.delete(`/v1/admin/packages/${pkg._id || pkg.id}`);
+      refresh();
+    } catch (err) {
+      console.error("Failed to delete package", err);
+    }
+  };
+
   const resetCouponForm = () => setCouponForm({ code: '', discount: '', validUntil: '' });
 
   const handleCouponChange = (key, value) => {
@@ -421,11 +462,11 @@ const Settings = () => {
   return (
     <div className="max-w-[1440px] mx-auto font-['Inter'] animate-in fade-in duration-500 p-6 md:p-8 w-full flex flex-col gap-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">System Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight sm:text-3xl">System Settings</h1>
         <p className="text-gray-400 text-sm font-medium">Configure platform settings and preferences</p>
       </div>
 
-      <div className="bg-[#f1f5f9] p-1.5 rounded-xl flex self-start md:self-center">
+      <div className="flex w-full flex-wrap gap-1.5 rounded-xl bg-[#f1f5f9] p-1.5 md:w-auto md:self-center">
         <SettingsTab label="Pricing" active={activeTab === 'pricing'} onClick={() => setActiveTab('pricing')} />
         <SettingsTab label="Email Templates" active={activeTab === 'emails'} onClick={() => setActiveTab('emails')} />
         <SettingsTab label="Notifications" active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
@@ -434,16 +475,91 @@ const Settings = () => {
 
       {activeTab === 'pricing' && (
         <div className="flex flex-col gap-8">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-8">
             <SectionHeader
               title="Test Packages"
-              subtitle="One active package with section-wise questions"
+              subtitle="Manage all packages and decide which active ones are visible to users"
               actionLabel="Edit Package"
-              onAction={openEditPackageModal}
+              onAction={() => openEditPackageModal(activePackage)}
               secondaryLabel="Create Package"
               secondaryAction={openCreatePackageModal}
             />
-            <div className="overflow-x-auto">
+            <div className="space-y-4 md:hidden">
+              {(packages || []).map((pkg) => (
+                <div key={pkg._id || pkg.id} className="rounded-2xl border border-gray-100 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h4 className="text-base font-bold text-gray-900 break-words">{pkg?.name}</h4>
+                      <p className="mt-1 text-sm text-gray-500 break-words">{pkg?.features}</p>
+                    </div>
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setActivePackageMenu((current) => (current === (pkg._id || pkg.id) ? '' : (pkg._id || pkg.id)))}
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                      {activePackageMenu === (pkg._id || pkg.id) && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-10 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => openEditPackageModal(pkg)}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50"
+                          >
+                            Edit package
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActivePackageMenu('');
+                              handleTogglePackageVisibility(pkg);
+                            }}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50"
+                          >
+                            {pkg?.isActive ? 'Hide package' : 'Show package'}
+                          </button>
+                          {!pkg?.isDefault && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePackage(pkg)}
+                              className="w-full px-4 py-3 text-left text-sm text-rose-600 hover:bg-rose-50"
+                            >
+                              Delete package
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-gray-50 px-3 py-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Price</p>
+                      <p className="mt-1 font-extrabold text-gray-900">{pkg?.priceLabel || pkg?.displayPrice || pkg?.price}</p>
+                    </div>
+                    <div className="rounded-xl bg-gray-50 px-3 py-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Status</p>
+                      <div className="mt-2"><StatusBadge status={pkg?.status || 'Active'} /></div>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Visible To Users</p>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePackageVisibility(pkg)}
+                      className={`mt-2 px-3 py-1 rounded-full text-xs font-bold border transition ${
+                        pkg?.isActive
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-600'
+                      }`}
+                    >
+                      {pkg?.isActive ? 'Visible' : 'Hidden'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-gray-50">
@@ -451,27 +567,79 @@ const Settings = () => {
                     <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Features</th>
                     <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center">Price</th>
                     <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center">Status</th>
+                    <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center">Visible To Users</th>
                     <th className="py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  <tr className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="py-6 text-sm font-bold text-gray-900">{activePackage?.name}</td>
-                    <td className="py-6 text-sm text-gray-500 font-medium">{activePackage?.features}</td>
-                    <td className="py-6 text-center text-sm font-extrabold text-gray-900">
-                      {activePackage?.priceLabel || activePackage?.displayPrice || activePackage?.price}
-                    </td>
-                    <td className="py-6 text-center"><StatusBadge status={activePackage?.status || 'Active'} /></td>
-                    <td className="py-6 text-right">
-                      <button onClick={openEditPackageModal} className="text-xs font-black text-gray-800 hover:text-[#14b8a6] uppercase tracking-wider transition-colors">Edit</button>
-                    </td>
-                  </tr>
+                  {(packages || []).map((pkg) => (
+                    <tr key={pkg._id || pkg.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <td className="py-6 text-sm font-bold text-gray-900">{pkg?.name}</td>
+                      <td className="py-6 text-sm text-gray-500 font-medium">{pkg?.features}</td>
+                      <td className="py-6 text-center text-sm font-extrabold text-gray-900">
+                        {pkg?.priceLabel || pkg?.displayPrice || pkg?.price}
+                      </td>
+                      <td className="py-6 text-center"><StatusBadge status={pkg?.status || 'Active'} /></td>
+                      <td className="py-6 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePackageVisibility(pkg)}
+                          className={`px-3 py-1 rounded-full text-xs font-bold border transition ${
+                            pkg?.isActive
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-slate-200 bg-white text-slate-600'
+                          }`}
+                        >
+                          {pkg?.isActive ? 'Visible' : 'Hidden'}
+                        </button>
+                      </td>
+                      <td className="py-6 text-right relative">
+                        <button
+                          type="button"
+                          onClick={() => setActivePackageMenu((current) => (current === (pkg._id || pkg.id) ? '' : (pkg._id || pkg.id)))}
+                          className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        {activePackageMenu === (pkg._id || pkg.id) && (
+                          <div className="absolute right-6 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-10 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => openEditPackageModal(pkg)}
+                              className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50"
+                            >
+                              Edit package
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActivePackageMenu('');
+                                handleTogglePackageVisibility(pkg);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50"
+                            >
+                              {pkg?.isActive ? 'Hide package' : 'Show package'}
+                            </button>
+                            {!pkg?.isDefault && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePackage(pkg)}
+                                className="w-full px-4 py-3 text-left text-sm text-rose-600 hover:bg-rose-50"
+                              >
+                                Delete package
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-8 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Coupon Codes</h3>
@@ -608,8 +776,8 @@ const Settings = () => {
             >
               <X size={18} />
             </button>
-            <h3 className="text-xl font-bold text-gray-900">Edit Package</h3>
-            <p className="text-sm text-gray-400 mt-1">Upload section questions from Google Sheets and keep one active package.</p>
+            <h3 className="text-xl font-bold text-gray-900">{packageModalMode === 'edit' ? 'Edit Package' : 'Create Package'}</h3>
+            <p className="text-sm text-gray-400 mt-1">Upload section questions from Google Sheets and control whether the package is visible to users.</p>
 
             <form className="mt-6 space-y-5" onSubmit={handleSavePackage}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

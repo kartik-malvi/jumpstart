@@ -61,10 +61,19 @@ const userSchema = new mongoose.Schema(
       careerPathwaysCount: { type: Number, default: 0 },
       testResults: [
         {
+          sectionId: mongoose.Schema.Types.Mixed,
+          sectionName: String,
           testName: String,
           completedAt: Date,
           score: Number,
           maxScore: Number,
+          percentage: Number,
+          dimensionScores: [
+            {
+              name: String,
+              score: Number,
+            },
+          ],
           reportUrl: String,
         },
       ],
@@ -95,7 +104,7 @@ const userSchema = new mongoose.Schema(
 
     // Livetest progress (section, question index, answers, time left)
     testProgress: {
-      sectionId: { type: Number, default: 1 },
+      sectionId: { type: mongoose.Schema.Types.Mixed, default: 1 },
       questionIndex: { type: Number, default: 0 },
       answers: { type: mongoose.Schema.Types.Mixed, default: {} },
       timeRemainingSeconds: { type: Number, default: null },

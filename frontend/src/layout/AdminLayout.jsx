@@ -9,10 +9,10 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-[#f9fafb]">
       {/* FIXED SIDEBAR */}
-      <AdminSidebar isOpen={isSidebarOpen} />
+      <AdminSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
       {/* MAIN WRAPPER */}
-      <div className={`transition-all duration-300 ${isSidebarOpen ? "ml-20" : "ml-0"}`}>
+      <div className={`transition-all duration-300 ${isSidebarOpen ? "md:ml-20" : "ml-0"}`}>
         
         {/* HEADER */}
         <AdminHeader

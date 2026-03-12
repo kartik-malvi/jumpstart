@@ -64,6 +64,41 @@ export const getPackages = async (req, res) => {
   }
 };
 
+export const getActivePackage = async (req, res) => {
+  try {
+    await ensureDefaultPackageExists();
+    const activePackage =
+      (await PackageConfig.findOne({ isActive: true }).lean()) ||
+      (await PackageConfig.findOne().sort({ createdAt: -1 }).lean());
+
+    return res.status(200).json({
+      success: true,
+      data: { package: activePackage || DEFAULT_PACKAGE_DATA },
+    });
+  } catch (err) {
+    console.error("Get active package error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to load active package" });
+  }
+};
+
+export const getPublicPackages = async (req, res) => {
+  try {
+    await ensureDefaultPackageExists();
+    const activePackages = await PackageConfig.find({ isActive: true, status: "Active" }).sort({ createdAt: -1 }).lean();
+    const packages = activePackages.length
+      ? activePackages
+      : [(await PackageConfig.findOne({ isDefault: true }).lean()) || DEFAULT_PACKAGE_DATA];
+
+    return res.status(200).json({
+      success: true,
+      data: { packages },
+    });
+  } catch (err) {
+    console.error("Get public packages error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to load packages" });
+  }
+};
+
 export const upsertPackage = async (req, res) => {
   try {
     const payload = req.body || {};
@@ -110,10 +145,6 @@ export const upsertPackage = async (req, res) => {
     });
     }
 
-    if (pkg.isActive) {
-      await PackageConfig.updateMany({ _id: { $ne: pkg._id } }, { isActive: false });
-    }
-
     return res.status(200).json({ success: true, data: { package: pkg.toObject() } });
   } catch (err) {
     console.error("Upsert package error:", err);
@@ -129,12 +160,42 @@ export const activatePackage = async (req, res) => {
     const pkg = await PackageConfig.findById(packageId);
     if (!pkg) return res.status(404).json({ success: false, msg: "Package not found" });
     pkg.isActive = true;
+    pkg.status = "Active";
     await pkg.save();
-    await PackageConfig.updateMany({ _id: { $ne: pkg._id } }, { isActive: false });
 
     return res.status(200).json({ success: true, data: { package: pkg.toObject() } });
   } catch (err) {
     console.error("Activate package error:", err);
     return res.status(500).json({ success: false, msg: err.message || "Failed to activate package" });
+  }
+};
+
+export const deletePackage = async (req, res) => {
+  try {
+    const { packageId } = req.params;
+    if (!packageId) {
+      return res.status(400).json({ success: false, msg: "Package ID is required" });
+    }
+
+    const pkg = await PackageConfig.findById(packageId);
+    if (!pkg) {
+      return res.status(404).json({ success: false, msg: "Package not found" });
+    }
+
+    if (pkg.isDefault) {
+      return res.status(400).json({ success: false, msg: "Default package cannot be deleted" });
+    }
+
+    await PackageConfig.deleteOne({ _id: packageId });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        packageId: String(packageId),
+      },
+    });
+  } catch (err) {
+    console.error("Delete package error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to delete package" });
   }
 };

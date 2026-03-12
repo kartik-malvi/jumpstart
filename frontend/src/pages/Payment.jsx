@@ -12,6 +12,7 @@ import lck from "../assets/lck.svg";
 import { GST_RATE } from "../data/testPackages";
 import api from "../api/api";
 import { usePackageData } from "../context/PackageContext";
+import { saveSelectedPackageId } from "../utils/testPackageStore";
 
 const Payment = () => {
   const location = useLocation();
@@ -29,7 +30,9 @@ const Payment = () => {
   useEffect(() => {
     if (!plan || !plan.id) {
       navigate("/test", { replace: true });
+      return;
     }
+    saveSelectedPackageId(plan._id || plan.id);
   }, [plan, navigate]);
 
   const formatPrice = (n) => `₹${Number(n).toLocaleString("en-IN")}`;

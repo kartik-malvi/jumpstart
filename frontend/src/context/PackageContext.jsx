@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, useEffect } from "react";
 import api from "../api/api";
-import DEFAULT_PACKAGE, { getDefaultCoupons } from "../utils/testPackageStore";
+import DEFAULT_PACKAGE, { getDefaultCoupons, getSelectedPackageId } from "../utils/testPackageStore";
 import { AuthContext } from "./AuthContext";
 
 const PackageContext = createContext({
@@ -21,7 +21,13 @@ export const PackageProvider = ({ children }) => {
 
   const fetchData = useCallback(async () => {
     if (!token || user?.role !== "admin") {
-      setPackages([]);
+      try {
+        const pkgRes = await api.get("/v1/packages/public");
+        setPackages(pkgRes?.data?.data?.packages || []);
+      } catch (err) {
+        console.error("Public package load failed", err);
+        setPackages([]);
+      }
       setCoupons(getDefaultCoupons());
       setMailLists([]);
       setLoading(false);
@@ -52,7 +58,8 @@ export const PackageProvider = ({ children }) => {
 
   const activePackage = useMemo(() => {
     if (!packages.length) return DEFAULT_PACKAGE;
-    const active = packages.find((p) => p.isActive) || packages[0];
+    const selectedPackageId = getSelectedPackageId();
+    const active = packages.find((p) => String(p._id || p.id) === String(selectedPackageId)) || packages.find((p) => p.isActive) || packages[0];
     const hasSections = Array.isArray(active.sections) && active.sections.length > 0;
     const mergedSections = hasSections ? active.sections : DEFAULT_PACKAGE.sections;
     return { ...DEFAULT_PACKAGE, ...active, sections: mergedSections };
