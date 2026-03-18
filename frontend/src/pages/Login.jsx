@@ -1,11 +1,11 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useCallback } from "react";
 import logo from "../assets/logo.png";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+import GoogleAuthButton from "../components/GoogleAuthButton";
+import PasswordField from "../components/PasswordField";
 
 export default function Login() {
   const { login, loginWithGoogle } = useContext(AuthContext);
@@ -19,7 +19,7 @@ export default function Login() {
   // ------------------------------------------------
   // GOOGLE LOGIN CALLBACK
   // ------------------------------------------------
-  const handleGoogleResponse = async (response) => {
+  const handleGoogleResponse = useCallback(async (response) => {
     try {
       const id_token = response.credential;
 
@@ -30,55 +30,7 @@ export default function Login() {
       console.error("Google Login Error:", err);
       setError(err.message || "Google Login Failed");
     }
-  };
-
-  // ------------------------------------------------
-  // LOAD & INITIALIZE GOOGLE BUTTON
-  // ------------------------------------------------
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      setError("Google login is not configured");
-      return;
-    }
-
-    const loadScript = () => {
-      return new Promise((resolve, reject) => {
-        // If already loaded
-        if (window.google && window.google.accounts) {
-          resolve();
-          return;
-        }
-
-        const script = document.createElement("script");
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-
-        script.onload = () => resolve();
-        script.onerror = () => reject("Google script failed to load");
-
-        document.body.appendChild(script);
-      });
-    };
-
-    loadScript().then(() => {
-      if (!window.google || !window.google.accounts) {
-        console.error("Google API not available");
-        return;
-      }
-
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleResponse,
-        ux_mode: "popup",
-      });
-
-      window.google.accounts.id.renderButton(
-        document.getElementById("google-btn"),
-        { theme: "outline", size: "large", width: "100%" }
-      );
-    });
-  }, []);
+  }, [loginWithGoogle, navigate]);
 
   // ------------------------------------------------
   // EMAIL + PASSWORD LOGIN
@@ -123,16 +75,16 @@ export default function Login() {
               />
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm mb-1 font-medium">Password</label>
-              <input
-                type="password"
-                className="w-full border p-3 rounded-lg"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+            <PasswordField
+              label="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mb-4"
+              labelClassName="block text-sm mb-1 font-medium"
+              inputClassName="w-full border p-3 pr-12 rounded-lg"
+              required
+              autoComplete="current-password"
+            />
 
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
@@ -145,14 +97,21 @@ export default function Login() {
             </button>
           </form>
 
+          <Link to="/forgot-password" className="mt-3 inline-block text-sm font-medium text-[#188B8B] hover:underline">
+            Forgot password?
+          </Link>
+
           {/* GOOGLE LOGIN BUTTON */}
-          <div id="google-btn" className="mt-4 w-full"></div>
+          <GoogleAuthButton
+            elementId="google-btn"
+            onCredential={handleGoogleResponse}
+            onConfigError={setError}
+            text="signin_with"
+          />
 
           <p className="text-center mt-6 text-sm">
             Don’t have an account?{" "}
-            <a href="/signup" className="font-semibold hover:underline">
-              Sign up
-            </a>
+            <Link to="/signup" className="font-semibold hover:underline">Sign up</Link>
           </p>
         </div>
 

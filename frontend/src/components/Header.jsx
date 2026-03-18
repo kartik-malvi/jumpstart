@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   Dialog,
@@ -14,12 +15,26 @@ import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import logo from "../assets/logo.png";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import ConfirmDialog from "./ConfirmDialog";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const isLoggedIn = !!user;
+
+  const requestLogout = () => {
+    setMobileMenuOpen(false);
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setShowLogoutConfirm(false);
+    navigate("/login");
+  };
 
   return (
     <header className="bg-white">
@@ -73,7 +88,7 @@ export default function Header() {
               </span>
 
               <button
-                onClick={logout}
+                onClick={requestLogout}
                 className="rounded-full bg-orange-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition"
               >
                 Logout
@@ -171,7 +186,7 @@ export default function Header() {
               <div className="py-6">
                 {isLoggedIn ? (
                   <button
-                    onClick={logout}
+                    onClick={requestLogout}
                     className="-mx-3 block rounded-full px-3 py-2.5 text-base font-semibold 
                                bg-orange-500 text-white text-center hover:bg-orange-600 transition"
                   >
@@ -190,6 +205,15 @@ export default function Header() {
           </div>
         </DialogPanel>
       </Dialog>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Logout?"
+        message="You will be signed out of your account on this device."
+        confirmLabel="Logout"
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </header>
   );
 }

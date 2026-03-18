@@ -23,6 +23,8 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ["user", "admin"], default: "user" },
     status: { type: String, enum: ["Active", "Suspended"], default: "Active" },
     lastLoginAt: { type: Date, default: null },
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpiresAt: { type: Date, default: null },
 
     // Dashboard counters
     testsCompleted: { type: Number, default: 0 },

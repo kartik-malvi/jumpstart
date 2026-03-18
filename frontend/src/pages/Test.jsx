@@ -4,7 +4,6 @@ import { FaCheck } from "react-icons/fa";
 import { HiBadgeCheck } from "react-icons/hi";
 import { usePackageData } from "../context/PackageContext";
 import DEFAULT_PACKAGE from "../utils/testPackageStore";
-import { saveSelectedPackageId } from "../utils/testPackageStore";
 
 const parseAmount = (price = "") => {
   const n = Number(String(price).replace(/[^\d.]/g, ""));
@@ -12,7 +11,7 @@ const parseAmount = (price = "") => {
 };
 
 const Test = () => {
-  const { packages } = usePackageData();
+  const { packages, setSelectedPackageId } = usePackageData();
   const navigate = useNavigate();
 
   const plans = useMemo(() => {
@@ -38,7 +37,7 @@ const Test = () => {
   }, [packages]);
 
   const handleGetStarted = (plan) => {
-    saveSelectedPackageId(plan._id || plan.id);
+    setSelectedPackageId(plan._id || plan.id);
     navigate("/payment", { state: { plan } });
   };
 

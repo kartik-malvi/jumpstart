@@ -1,7 +1,8 @@
 import React, { useContext, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext";
+import PasswordField from "../../components/PasswordField";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -60,17 +61,17 @@ export default function AdminLogin() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm mb-2 text-white/80">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-2xl bg-white/10 border border-white/10 px-4 py-3 outline-none focus:border-teal-300"
-              placeholder="Enter password"
-              required
-            />
-          </div>
+          <PasswordField
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            className=""
+            labelClassName="block text-sm mb-2 text-white/80"
+            inputClassName="w-full rounded-2xl bg-white/10 border border-white/10 px-4 py-3 pr-12 outline-none focus:border-teal-300"
+            required
+            autoComplete="current-password"
+          />
 
           {error && <p className="text-sm text-rose-300">{error}</p>}
 
@@ -82,6 +83,10 @@ export default function AdminLogin() {
             {loading ? "Signing in..." : "Open Service Dashboard"}
           </button>
         </form>
+
+        <Link to="/service/forgot-password" className="mt-4 inline-block text-sm font-medium text-teal-200 hover:underline">
+          Forgot password?
+        </Link>
 
         <p className="text-sm text-white/60 mt-6">
           Password reset is available inside Service Settings after login, or another admin can reset a user password from User Management.

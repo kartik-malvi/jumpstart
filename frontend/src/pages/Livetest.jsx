@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { IoPause, IoDocumentTextOutline } from "react-icons/io5";
+import { IoPause } from "react-icons/io5";
 import api from "../api/api";
 import { LIKERT_OPTIONS } from "../data/livetestQuestions";
 import {
@@ -74,9 +74,9 @@ const Livetest = () => {
   const [currentQIdx, setCurrentQIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeRemaining, setTimeRemaining] = useState((section?.durationMinutes || 20) * 60);
-  const [autoSaved, setAutoSaved] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [pauseError, setPauseError] = useState("");
 
   const currentQuestion = questions[currentQIdx];
   const currentMeta = getQuestionMeta(currentQuestion);
@@ -134,43 +134,8 @@ const Livetest = () => {
     return () => clearInterval(t);
   }, [loading]);
 
-  const saveProgress = useCallback(
-    (payload = {}) => {
-      setSaving(true);
-      const body = {
-        sectionId: String(resolvedSectionId),
-        questionIndex: currentQIdx,
-        answers,
-        timeRemainingSeconds: timeRemaining,
-        ...payload,
-      };
-      api
-        .patch("/v1/user/test-progress", body)
-        .then(() => {
-          setAutoSaved(true);
-          setTimeout(() => setAutoSaved(false), 2000);
-        })
-        .finally(() => setSaving(false));
-    },
-    [resolvedSectionId, currentQIdx, answers, timeRemaining]
-  );
-
   const handleOptionSelect = (value) => {
-    const newAnswers = { ...answers, [key(String(resolvedSectionId), currentQIdx)]: value };
-    setAnswers(newAnswers);
-    setSaving(true);
-    api
-      .patch("/v1/user/test-progress", {
-        sectionId: String(resolvedSectionId),
-        questionIndex: currentQIdx,
-        answers: newAnswers,
-        timeRemainingSeconds: timeRemaining,
-      })
-      .then(() => {
-        setAutoSaved(true);
-        setTimeout(() => setAutoSaved(false), 2000);
-      })
-      .finally(() => setSaving(false));
+    setAnswers((prev) => ({ ...prev, [key(String(resolvedSectionId), currentQIdx)]: value }));
   };
 
   const globalQuestionNumber = completedQuestions + currentQIdx + 1;
@@ -179,7 +144,6 @@ const Livetest = () => {
   const goPrev = () => {
     if (currentQIdx > 0) {
       setCurrentQIdx(currentQIdx - 1);
-      saveProgress({ questionIndex: currentQIdx - 1 });
     }
   };
 
@@ -252,7 +216,6 @@ const Livetest = () => {
       average: v.count > 0 ? Number((v.sum / v.count).toFixed(3)) : 0,
     }));
 
-    setSaving(true);
     api
       .post("/v1/user/test-submit", {
         sectionId: String(resolvedSectionId),
@@ -270,18 +233,32 @@ const Livetest = () => {
       .then(() => {
         clearCompletedSectionIds();
         navigate("/test-completed", { replace: true });
-      })
-      .finally(() => setSaving(false));
+      });
+  };
+
+  const handlePauseTest = async () => {
+    setPauseError("");
+    setPausing(true);
+    try {
+      await api.patch("/v1/user/test-progress", {
+        sectionId: String(resolvedSectionId),
+        questionIndex: currentQIdx,
+        answers,
+        timeRemainingSeconds: timeRemaining,
+      });
+      navigate("/dashboard", { replace: true, state: { pausedTest: true } });
+    } catch (err) {
+      setPauseError(err?.response?.data?.msg || "Failed to pause test. Please try again.");
+    } finally {
+      setPausing(false);
+    }
   };
 
   const goNext = () => {
     if (currentQIdx < questionsInSection - 1) {
       setCurrentQIdx(currentQIdx + 1);
-      saveProgress({ questionIndex: currentQIdx + 1 });
       return;
     }
-
-    saveProgress({ questionIndex: currentQIdx });
 
     const updatedCompleted = Array.from(new Set([...completedIds, String(resolvedSectionId)]));
     saveCompletedSectionIds(updatedCompleted);
@@ -331,43 +308,55 @@ const Livetest = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#fafafa] px-4 sm:px-6 md:px-8 py-6">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
+    <div className="min-h-screen bg-[#fafafa] px-4 sm:px-6 md:px-8 py-6 md:py-8">
+      <div className="max-w-6xl mx-auto rounded-[28px] border border-[#E1E7EF] bg-white shadow-sm overflow-hidden">
+        <div className="flex flex-wrap justify-between items-center gap-4 px-5 sm:px-8 py-5 border-b border-[#E1E7EF]">
           <h1 className="text-xl sm:text-2xl font-bold text-[#0F1729]">{section.name}</h1>
           <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold text-[#0F1729]">{formatTime(timeRemaining)}</span>
-            <button type="button" className="flex items-center gap-2 px-4 py-2 border border-[#E1E7EF] rounded-xl text-sm font-medium text-[#0F1729] hover:bg-gray-50">
+            <span className="text-base sm:text-lg font-semibold text-[#0F1729]">{formatTime(timeRemaining)}</span>
+            <button type="button" onClick={handlePauseTest} disabled={pausing} className="flex items-center gap-2 px-4 py-2 border-2 border-[#188B8B] rounded-xl text-sm font-semibold text-[#188B8B] bg-white hover:bg-teal-50 disabled:opacity-60 disabled:cursor-not-allowed">
               <IoPause className="text-lg" /> Pause Test
             </button>
           </div>
         </div>
 
-        <p className="text-sm text-[#65758B] mb-1">Question {globalQuestionNumber} of {totalQuestions}</p>
-        <div className="h-2 bg-[#E1E7EF] rounded-full overflow-hidden mb-2">
-          <div className="h-full bg-[#188B8B] rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
-        </div>
-        <p className="text-xs text-[#65758B] mb-6">{progressPercent}% Complete</p>
+        <div className="px-5 sm:px-8 py-8">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center justify-between gap-4 text-sm text-[#65758B] mb-3">
+              <p>Question {globalQuestionNumber} of {totalQuestions}</p>
+              <p className="font-semibold">{progressPercent}% Complete</p>
+            </div>
+            <div className="h-2 bg-[#E1E7EF] rounded-full overflow-hidden mb-6">
+              <div className="h-full bg-[#188B8B] rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+            </div>
 
-        <div className="bg-white rounded-2xl border border-[#E1E7EF] shadow-sm p-6 sm:p-8 mb-6">
-          <p className="text-lg font-semibold text-[#0F1729] mb-6">{currentMeta.text}</p>
-          <div className="space-y-3">
-            {currentOptions.map((opt) => (
-              <label key={opt.value} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${currentAnswer === opt.value ? "border-[#188B8B] bg-[rgba(24,139,139,0.06)]" : "border-[#E1E7EF] bg-white hover:border-gray-300"}`}>
-                <input type="radio" name="dynamic-option" value={opt.value} checked={currentAnswer === opt.value} onChange={() => handleOptionSelect(opt.value)} className="w-4 h-4 text-[#188B8B] border-gray-300 focus:ring-[#188B8B]" />
-                <span className="text-sm font-medium text-[#0F1729]">{opt.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+            <div className="bg-white rounded-2xl border border-[#E1E7EF] shadow-sm p-5 sm:p-8 mb-6">
+              <p className="text-lg sm:text-xl font-semibold text-[#0F1729] mb-6">{currentMeta.text}</p>
+              <div className="space-y-3">
+                {currentOptions.map((opt) => (
+                  <label key={opt.value} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition ${currentAnswer === opt.value ? "border-[#188B8B] bg-[rgba(24,139,139,0.06)]" : "border-[#E1E7EF] bg-white hover:border-gray-300"}`}>
+                    <input type="radio" name="dynamic-option" value={opt.value} checked={currentAnswer === opt.value} onChange={() => handleOptionSelect(opt.value)} className="w-4 h-4 text-[#188B8B] border-gray-300 focus:ring-[#188B8B]" />
+                    <span className="text-sm font-medium text-[#0F1729]">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-4">
-            <button type="button" onClick={goPrev} disabled={currentQIdx === 0} className="px-6 py-2.5 border-2 border-[#188B8B] text-[#188B8B] rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-teal-50">Previous</button>
-            {autoSaved && <span className="flex items-center gap-2 text-sm text-[#65758B]"><IoDocumentTextOutline className="text-lg" />Auto-saved</span>}
-            <button type="button" onClick={goNext} disabled={saving} className="px-6 py-2.5 bg-[#F59F0A] text-[#0F1729] rounded-xl font-semibold hover:bg-amber-500 disabled:opacity-70">{currentQIdx < questionsInSection - 1 ? "Next" : willHaveRemaining ? "Finish Section" : "Submit Test"}</button>
+            <div className="flex items-center justify-between gap-4">
+              <button type="button" onClick={goPrev} disabled={currentQIdx === 0} className="min-w-[120px] px-6 py-3 border-2 border-[#188B8B] text-[#188B8B] rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-teal-50">
+                Previous
+              </button>
+              <button type="button" onClick={goNext} className="min-w-[120px] px-6 py-3 bg-[#F7C767] text-[#0F1729] rounded-2xl font-semibold hover:bg-[#f4bb40]">
+                {currentQIdx < questionsInSection - 1 ? "Next" : willHaveRemaining ? "Finish Section" : "Submit Test"}
+              </button>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-[rgba(24,139,139,0.08)] px-4 py-3 text-center text-sm text-[#0F1729]">
+              Your progress is automatically saved. You can pause once and return within 24 hours.
+            </div>
+
+            {pauseError && <p className="mt-3 text-center text-sm text-rose-600">{pauseError}</p>}
           </div>
-          <div className="w-full max-w-xl py-3 px-4 bg-[rgba(24,139,139,0.08)] rounded-xl text-center text-sm text-[#0F1729]">Your progress is automatically saved.</div>
         </div>
       </div>
     </div>

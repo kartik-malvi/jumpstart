@@ -6,6 +6,8 @@ import "./index.css";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Test from "./pages/Test";
 import Pretest from "./pages/Pretest";
@@ -42,6 +44,8 @@ const router = createBrowserRouter([
       { path: "/", element: <Home /> },
       { path: "/login", element: <Login /> },
       { path: "/signup", element: <Signup /> },
+      { path: "/forgot-password", element: <ForgotPassword /> },
+      { path: "/reset-password/:token", element: <ResetPassword /> },
       { path: "/test", element: <Test /> },
       { path: "/pretest", element: <Pretest /> },
       { path: "/Pretest", element: <Pretest /> },
@@ -90,6 +94,14 @@ const router = createBrowserRouter([
       {
         path: "login",
         element: <AdminLogin />,
+      },
+      {
+        path: "forgot-password",
+        element: <ForgotPassword />,
+      },
+      {
+        path: "reset-password/:token",
+        element: <ResetPassword />,
       },
     ],
   },

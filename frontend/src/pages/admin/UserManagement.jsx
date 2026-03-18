@@ -3,6 +3,7 @@ import { ChevronDown, MoreVertical, Search, Trash2, X } from "lucide-react";
 import api from "../../api/api";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { timeAgo } from "../../utils/adminFormat";
+import PasswordField from "../../components/PasswordField";
 
 const SubscriptionBadge = ({ type }) => {
   const styles = {
@@ -339,14 +340,14 @@ const UserManagement = () => {
       {passwordUser && (
         <Modal title={`Change Password: ${passwordUser.name}`} onClose={() => { setPasswordUser(null); setSaving(false); setActionError(""); }}>
           <form className="space-y-4" onSubmit={handlePasswordReset}>
-            <input
-              type="password"
+            <PasswordField
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-slate-200 rounded-2xl px-4 py-3"
+              inputClassName="w-full border border-slate-200 rounded-2xl px-4 py-3 pr-12"
               placeholder="New password"
               minLength={6}
               required
+              autoComplete="new-password"
             />
             {actionError && <p className="text-sm text-rose-500">{actionError}</p>}
             <button type="submit" disabled={saving} className="w-full rounded-2xl bg-slate-900 text-white py-3 font-semibold disabled:opacity-60">

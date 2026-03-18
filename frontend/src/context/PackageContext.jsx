@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useMemo, useState, useEffect } from "react";
 import api from "../api/api";
-import DEFAULT_PACKAGE, { getDefaultCoupons, getSelectedPackageId } from "../utils/testPackageStore";
+import DEFAULT_PACKAGE, {
+  getDefaultCoupons,
+  getSelectedPackageId,
+  saveSelectedPackageId as persistSelectedPackageId,
+} from "../utils/testPackageStore";
 import { AuthContext } from "./AuthContext";
 
 const PackageContext = createContext({
@@ -8,6 +12,8 @@ const PackageContext = createContext({
   coupons: [],
   mailLists: [],
   activePackage: DEFAULT_PACKAGE,
+  selectedPackageId: null,
+  setSelectedPackageId: () => {},
   loading: true,
   refresh: () => Promise.resolve(),
 });
@@ -17,7 +23,24 @@ export const PackageProvider = ({ children }) => {
   const [packages, setPackages] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [mailLists, setMailLists] = useState([]);
+  const [selectedPackageId, setSelectedPackageIdState] = useState(() => getSelectedPackageId());
   const [loading, setLoading] = useState(true);
+
+  const setSelectedPackageId = useCallback((id) => {
+    if (!id) return;
+    const nextId = String(id);
+    persistSelectedPackageId(nextId);
+    setSelectedPackageIdState(nextId);
+  }, []);
+
+  useEffect(() => {
+    const syncSelectedPackage = () => {
+      setSelectedPackageIdState(getSelectedPackageId());
+    };
+
+    window.addEventListener("storage", syncSelectedPackage);
+    return () => window.removeEventListener("storage", syncSelectedPackage);
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!token || user?.role !== "admin") {
@@ -58,15 +81,28 @@ export const PackageProvider = ({ children }) => {
 
   const activePackage = useMemo(() => {
     if (!packages.length) return DEFAULT_PACKAGE;
-    const selectedPackageId = getSelectedPackageId();
-    const active = packages.find((p) => String(p._id || p.id) === String(selectedPackageId)) || packages.find((p) => p.isActive) || packages[0];
+    const active =
+      packages.find((p) => String(p._id || p.id) === String(selectedPackageId)) ||
+      packages.find((p) => p.isActive) ||
+      packages[0];
     const hasSections = Array.isArray(active.sections) && active.sections.length > 0;
     const mergedSections = hasSections ? active.sections : DEFAULT_PACKAGE.sections;
     return { ...DEFAULT_PACKAGE, ...active, sections: mergedSections };
-  }, [packages]);
+  }, [packages, selectedPackageId]);
 
   return (
-    <PackageContext.Provider value={{ packages, coupons, mailLists, activePackage, loading, refresh: fetchData }}>
+    <PackageContext.Provider
+      value={{
+        packages,
+        coupons,
+        mailLists,
+        activePackage,
+        selectedPackageId,
+        setSelectedPackageId,
+        loading,
+        refresh: fetchData,
+      }}
+    >
       {children}
     </PackageContext.Provider>
   );

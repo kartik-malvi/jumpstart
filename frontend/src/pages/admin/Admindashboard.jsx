@@ -15,6 +15,7 @@ import api from "../../api/api";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { timeAgo } from "../../utils/adminFormat";
 import { downloadCsv, openPrintPdf } from "../../utils/adminExport";
+import PasswordField from "../../components/PasswordField";
 
 const Modal = ({ title, children, onClose }) => (
   <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -422,13 +423,13 @@ const AdminDashboard = () => {
               onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
               required
             />
-            <input
-              className="w-full border border-slate-200 rounded-2xl px-4 py-3"
-              type="password"
-              placeholder="Temporary password"
+            <PasswordField
               value={userForm.password}
               onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
+              placeholder="Temporary password"
+              inputClassName="w-full border border-slate-200 rounded-2xl px-4 py-3 pr-12"
               required
+              autoComplete="new-password"
             />
             <input
               className="w-full border border-slate-200 rounded-2xl px-4 py-3"

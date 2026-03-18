@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
+import nodemailer from "nodemailer";
 import User from "../models/User.js";
 
 const googleClient = process.env.GOOGLE_CLIENT_ID
@@ -8,6 +10,53 @@ const googleClient = process.env.GOOGLE_CLIENT_ID
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+const buildResetBaseUrl = (req, isAdmin = false) => {
+  const explicitBase =
+    process.env.APP_BASE_URL ||
+    process.env.CLIENT_ORIGIN?.split(",")[0]?.trim() ||
+    req.headers.origin ||
+    "http://127.0.0.1:5175";
+
+  const normalizedBase = explicitBase.replace(/\/+$/, "");
+  return isAdmin ? `${normalizedBase}/service/reset-password` : `${normalizedBase}/reset-password`;
+};
+
+const getMailTransport = () => {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
+  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: Number(SMTP_PORT),
+    secure: process.env.SMTP_SECURE === "true" || Number(SMTP_PORT) === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+};
+
+const sendResetEmail = async ({ to, resetUrl, isAdmin = false }) => {
+  const transport = getMailTransport();
+  if (!transport) return false;
+
+  await transport.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: isAdmin ? "Jumpstart admin password reset" : "Jumpstart password reset",
+    text: `Use this link to reset your password: ${resetUrl}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; line-height: 1.6; color: #0f1729;">
+        <h2>Reset your password</h2>
+        <p>Use the link below to set a new password.</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>This link expires in 1 hour.</p>
+      </div>
+    `,
+  });
+
+  return true;
+};
 
 // POST /api/v1/user/auth/register
 export const register = async (req, res) => {
@@ -225,5 +274,84 @@ export const socialLogin = async (req, res) => {
       success: false,
       msg: err.message || "Google login failed",
     });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const email = (req.body.email || "").toLowerCase().trim();
+    const isAdmin = !!req.body.isAdmin;
+
+    if (!email) {
+      return res.status(400).json({ success: false, msg: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || !user.password) {
+      return res.status(200).json({
+        success: true,
+        msg: "If this email exists, a reset link has been sent.",
+      });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const resetUrl = `${buildResetBaseUrl(req, isAdmin)}/${rawToken}`;
+
+    user.resetPasswordToken = tokenHash;
+    user.resetPasswordExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await user.save();
+
+    const emailed = await sendResetEmail({ to: email, resetUrl, isAdmin });
+    const payload = {
+      success: true,
+      msg: "If this email exists, a reset link has been sent.",
+    };
+
+    if (!emailed) {
+      console.log(`[password-reset] Email not configured. Reset link for ${email}: ${resetUrl}`);
+      payload.mailConfigured = false;
+      if (process.env.NODE_ENV !== "production") payload.devResetUrl = resetUrl;
+    }
+
+    return res.status(200).json(payload);
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to process reset request" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password, password_confirmation } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, msg: "Password must be at least 6 characters" });
+    }
+
+    if (password !== password_confirmation) {
+      return res.status(400).json({ success: false, msg: "Passwords do not match" });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      resetPasswordToken: tokenHash,
+      resetPasswordExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, msg: "Reset link is invalid or expired" });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpiresAt = null;
+    await user.save();
+
+    return res.status(200).json({ success: true, msg: "Password updated successfully" });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Failed to reset password" });
   }
 };

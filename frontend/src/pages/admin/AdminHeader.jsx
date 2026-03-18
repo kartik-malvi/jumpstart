@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, LogOut, Menu, Settings } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 const initialsFromName = (name = "") =>
   name
@@ -15,6 +16,7 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const profileRef = useRef(null);
 
   useEffect(() => {
@@ -29,6 +31,7 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
 
   const handleLogout = () => {
     logout();
+    setShowLogoutConfirm(false);
     navigate("/service/login");
   };
 
@@ -87,7 +90,10 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
 
             <div className="p-2 border-t border-gray-50">
               <button
-                onClick={handleLogout}
+                onClick={() => {
+                  setShowProfileDropdown(false);
+                  setShowLogoutConfirm(true);
+                }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors"
               >
                 <LogOut size={18} />
@@ -97,6 +103,15 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Logout from admin?"
+        message="You will be signed out of the admin panel on this device."
+        confirmLabel="Logout"
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </header>
   );
 };

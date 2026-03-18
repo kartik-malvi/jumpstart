@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { CheckCircle, PlayCircle, FileText, Video, Calendar, HelpCircle } from "lucide-react";
 import api from "../api/api";
@@ -9,8 +9,10 @@ import di3 from "../assets/di3.png";
 
 const Dashboard = () => {
   const { token, user } = useContext(AuthContext);
+  const location = useLocation();
 
   const [loading, setLoading] = useState(true);
+  const [resumeSectionId, setResumeSectionId] = useState(null);
   const [stats, setStats] = useState({
     tests_completed: 0,
     tests_in_progress: 0,
@@ -29,7 +31,7 @@ const Dashboard = () => {
 
     api
       .get("/v1/user/init")
-      .then((res) => {
+      .then(async (res) => {
         const d = res?.data?.data;
 
         if (!d) {
@@ -46,6 +48,19 @@ const Dashboard = () => {
           available_tests: d.available_tests || [],
           top_careers: d.top_careers || [],
         });
+
+        if ((d.tests_in_progress ?? 0) > 0) {
+          try {
+            const progressRes = await api.get("/v1/user/test-progress");
+            const sectionId = progressRes?.data?.data?.sectionId;
+            setResumeSectionId(sectionId ? String(sectionId) : null);
+          } catch (progressErr) {
+            console.error("Failed to load resume progress:", progressErr);
+            setResumeSectionId(null);
+          }
+        } else {
+          setResumeSectionId(null);
+        }
       })
       .catch((err) => {
         console.error("Dashboard API Error:", err);
@@ -114,6 +129,21 @@ const Dashboard = () => {
             <p className="text-[#65758B] mt-1 text-base mb-6">
               View and manage your aptitude tests
             </p>
+
+            {(location.state?.pausedTest || resumeSectionId) && (
+              <div className="mb-6 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-4">
+                <p className="text-sm text-[#0F1729] font-semibold">Your test is paused.</p>
+                <p className="text-sm text-[#65758B] mt-1">Resume from where you left off within 24 hours.</p>
+                {resumeSectionId && (
+                  <Link
+                    to={`/livetest/${resumeSectionId}`}
+                    className="inline-flex mt-3 items-center justify-center rounded-xl bg-[#188B8B] px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 transition"
+                  >
+                    Continue Test
+                  </Link>
+                )}
+              </div>
+            )}
 
             {stats.available_tests && stats.available_tests.length > 0 ? (
               <div className="space-y-4">

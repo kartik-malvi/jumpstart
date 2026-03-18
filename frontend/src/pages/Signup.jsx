@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useContext } from "react";
-import GoogleIcon from "../assets/Social-icon.png";
+import React, { useState, useContext, useCallback } from "react";
 import logo from "../assets/logo.png";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api/api";
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+import GoogleAuthButton from "../components/GoogleAuthButton";
+import PasswordField from "../components/PasswordField";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -30,7 +28,7 @@ export default function Signup() {
   // ------------------------------------------------
   // GOOGLE SIGNUP HANDLER
   // ------------------------------------------------
-  const handleGoogleResponse = async (response) => {
+  const handleGoogleResponse = useCallback(async (response) => {
     try {
       const id_token = response.credential;
 
@@ -41,48 +39,7 @@ export default function Signup() {
       console.error("Google Signup Error:", err);
       setMsg(err.message || "Google Signup Failed");
     }
-  };
-
-  // ------------------------------------------------
-  // LOAD GOOGLE SCRIPT + BUTTON
-  // ------------------------------------------------
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      setMsg("Google signup is not configured");
-      return;
-    }
-
-    const loadScript = () =>
-      new Promise((resolve) => {
-        if (window.google && window.google.accounts) {
-          resolve();
-          return;
-        }
-
-        const script = document.createElement("script");
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        script.onload = resolve;
-
-        document.body.appendChild(script);
-      });
-
-    loadScript().then(() => {
-      if (!window.google) return;
-
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleResponse,
-        ux_mode: "popup",
-      });
-
-      window.google.accounts.id.renderButton(
-        document.getElementById("google-signup"),
-        { theme: "outline", size: "large", width: "100%" }
-      );
-    });
-  }, []);
+  }, [loginWithGoogle, navigate]);
 
   // ------------------------------------------------
   // NORMAL SIGNUP
@@ -154,29 +111,27 @@ export default function Signup() {
             />
           </div>
 
-          <div className="mb-4">
-            <label className="block text-sm mb-1 font-medium">Password*</label>
-            <input
-              type="password"
-              placeholder="Password"
-              onChange={(e) => handleChange("password", e.target.value)}
-              className="w-full border p-3 rounded-lg"
-            />
-          </div>
+          <PasswordField
+            label="Password*"
+            value={form.password}
+            onChange={(e) => handleChange("password", e.target.value)}
+            placeholder="Password"
+            className="mb-4"
+            labelClassName="block text-sm mb-1 font-medium"
+            inputClassName="w-full border p-3 pr-12 rounded-lg"
+            autoComplete="new-password"
+          />
 
-          <div className="mb-4">
-            <label className="block text-sm mb-1 font-medium">
-              Confirm Password*
-            </label>
-            <input
-              type="password"
-              placeholder="Re-enter password"
-              onChange={(e) =>
-                handleChange("password_confirmation", e.target.value)
-              }
-              className="w-full border p-3 rounded-lg"
-            />
-          </div>
+          <PasswordField
+            label="Confirm Password*"
+            value={form.password_confirmation}
+            onChange={(e) => handleChange("password_confirmation", e.target.value)}
+            placeholder="Re-enter password"
+            className="mb-4"
+            labelClassName="block text-sm mb-1 font-medium"
+            inputClassName="w-full border p-3 pr-12 rounded-lg"
+            autoComplete="new-password"
+          />
 
           {/* SUBMIT BUTTON */}
           <button
@@ -188,7 +143,12 @@ export default function Signup() {
           </button>
 
           {/* GOOGLE SIGNUP BUTTON */}
-          <div id="google-signup" className="mt-4 w-full"></div>
+          <GoogleAuthButton
+            elementId="google-signup"
+            onCredential={handleGoogleResponse}
+            onConfigError={setMsg}
+            text="signup_with"
+          />
 
           {msg && (
             <p className="text-center mt-4 text-sm text-red-600">{msg}</p>

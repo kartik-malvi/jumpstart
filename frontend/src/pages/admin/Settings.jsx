@@ -7,6 +7,7 @@ import DEFAULT_PACKAGE, {
   getMailListTemplateCsv,
 } from '../../utils/testPackageStore';
 import { usePackageData } from '../../context/PackageContext';
+import PasswordField from "../../components/PasswordField";
 
 const StatusBadge = ({ status }) => (
   <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-teal-800 text-white uppercase tracking-wider">
@@ -736,26 +737,26 @@ const Settings = () => {
           <p className="text-gray-400 text-sm mt-1">Change the password used to access the service dashboard.</p>
 
           <form className="space-y-4 mt-6" onSubmit={handlePasswordChange}>
-            <input
-              type="password"
+            <PasswordField
               value={passwordForm.currentPassword}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
               placeholder="Current password"
-              className="w-full px-4 py-3 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+              inputClassName="w-full px-4 py-3 pr-12 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+              autoComplete="current-password"
             />
-            <input
-              type="password"
+            <PasswordField
               value={passwordForm.newPassword}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
               placeholder="New password"
-              className="w-full px-4 py-3 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+              inputClassName="w-full px-4 py-3 pr-12 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+              autoComplete="new-password"
             />
-            <input
-              type="password"
+            <PasswordField
               value={passwordForm.confirmPassword}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
               placeholder="Confirm new password"
-              className="w-full px-4 py-3 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+              inputClassName="w-full px-4 py-3 pr-12 border rounded-xl text-sm border-gray-200 focus:ring-2 focus:ring-teal-100"
+              autoComplete="new-password"
             />
             {passwordError && <p className="text-sm text-rose-500">{passwordError}</p>}
             {passwordMessage && <p className="text-sm text-emerald-600">{passwordMessage}</p>}
