@@ -53,6 +53,8 @@ const Result = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [data, setData] = useState({
     hasResults: false,
+    submissionApproved: false,
+    submissionStatus: "not_submitted",
     overallScore: null,
     overallPercentile: "",
     completedTestsCount: 0,
@@ -102,6 +104,25 @@ const Result = () => {
     (data.strengths && data.strengths.length > 0) ||
     (data.careerRecommendations && data.careerRecommendations.length > 0) ||
     (data.personalityType && data.personalityType.code);
+
+  if (data.submissionStatus === "pending") {
+    return (
+      <div className="min-h-screen bg-[#fafafa] p-6 px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 md:pt-10 pb-16">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#0F1729] mb-2">Results Pending Approval</h2>
+          <p className="text-[#65758B] mb-6">
+            Your test has been submitted successfully. Your detailed report will appear here after the admin approves your submission.
+          </p>
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#188B8B] text-white rounded-[14px] font-semibold hover:bg-teal-700"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!hasAnyContent) {
     return (

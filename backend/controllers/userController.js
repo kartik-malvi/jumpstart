@@ -15,6 +15,8 @@ const pushActivity = (user, activity) => {
   }
 };
 
+const isSubmissionApproved = (user) => user?.submissionApprovalStatus === "approved";
+
 const DEFAULT_AVAILABLE_TESTS = [
   { title: "Aptitude Assessment", durationMinutes: 22, totalQuestions: 30, status: "not_started" },
   { title: "Interest", durationMinutes: 20, totalQuestions: 30, status: "not_started" },
@@ -27,7 +29,7 @@ export const init = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
       .select(
-        "name email testsCompleted testsInProgress reportsReady counsellingSessions availableTests topCareers resultProfile"
+        "name email testsCompleted testsInProgress reportsReady counsellingSessions availableTests topCareers resultProfile submissionApprovalStatus"
       )
       .lean();
 
@@ -44,19 +46,20 @@ export const init = async (req, res) => {
     }
 
     // Prefer career matches from resultProfile (test results) over user.topCareers
+    const approved = isSubmissionApproved(user);
     let topCareers = [];
     const profile = user.resultProfile || {};
-    if (Array.isArray(profile.careerRecommendations) && profile.careerRecommendations.length > 0) {
+    if (approved && Array.isArray(profile.careerRecommendations) && profile.careerRecommendations.length > 0) {
       topCareers = profile.careerRecommendations.map((c) => ({
         title: c.title,
         matchPercent: c.matchPercent,
       }));
-    } else if (Array.isArray(user.topCareers) && user.topCareers.length > 0) {
+    } else if (approved && Array.isArray(user.topCareers) && user.topCareers.length > 0) {
       topCareers = user.topCareers;
     }
 
-    const testsCompleted = user.testsCompleted ?? 0;
-    const reportsReady = profile.testResults?.length ?? user.reportsReady ?? testsCompleted;
+    const testsCompleted = approved ? user.testsCompleted ?? 0 : 0;
+    const reportsReady = approved ? (profile.testResults?.length ?? user.reportsReady ?? testsCompleted) : 0;
 
     return res.status(200).json({
       success: true,
@@ -72,6 +75,8 @@ export const init = async (req, res) => {
         counselling_sessions: user.counsellingSessions ?? 0,
         available_tests: availableTests,
         top_careers: topCareers,
+        submission_approved: approved,
+        submission_status: approved ? "approved" : (user.testsCompleted || 0) > 0 ? "pending" : "not_submitted",
       },
     });
   } catch (err) {
@@ -87,7 +92,7 @@ export const init = async (req, res) => {
 export const getResults = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .select("resultProfile testsCompleted")
+      .select("resultProfile testsCompleted submissionApprovalStatus")
       .lean();
 
     if (!user) {
@@ -98,27 +103,31 @@ export const getResults = async (req, res) => {
     }
 
     const profile = user.resultProfile || {};
-    const hasAnyResults =
+    const approved = isSubmissionApproved(user);
+    const hasAnyResults = approved && (
       (profile.testResults && profile.testResults.length > 0) ||
       (profile.strengths && profile.strengths.length > 0) ||
       (profile.careerRecommendations && profile.careerRecommendations.length > 0) ||
-      (profile.personalityType && profile.personalityType.code);
+      (profile.personalityType && profile.personalityType.code)
+    );
 
     return res.status(200).json({
       success: true,
       data: {
         hasResults: !!hasAnyResults,
-        overallScore: profile.overallScore ?? null,
-        overallPercentile: profile.overallPercentile || "",
-        completedTestsCount: profile.completedTestsCount ?? user.testsCompleted ?? 0,
-        totalTestsCount: profile.totalTestsCount ?? 0,
-        careerPathwaysCount: profile.careerPathwaysCount ?? 0,
-        testResults: Array.isArray(profile.testResults) ? profile.testResults : [],
-        strengths: Array.isArray(profile.strengths) ? profile.strengths : [],
-        careerRecommendations: Array.isArray(profile.careerRecommendations)
+        submissionApproved: approved,
+        submissionStatus: approved ? "approved" : (user.testsCompleted || 0) > 0 ? "pending" : "not_submitted",
+        overallScore: approved ? profile.overallScore ?? null : null,
+        overallPercentile: approved ? profile.overallPercentile || "" : "",
+        completedTestsCount: approved ? profile.completedTestsCount ?? user.testsCompleted ?? 0 : 0,
+        totalTestsCount: approved ? profile.totalTestsCount ?? 0 : 0,
+        careerPathwaysCount: approved ? profile.careerPathwaysCount ?? 0 : 0,
+        testResults: approved && Array.isArray(profile.testResults) ? profile.testResults : [],
+        strengths: approved && Array.isArray(profile.strengths) ? profile.strengths : [],
+        careerRecommendations: approved && Array.isArray(profile.careerRecommendations)
           ? profile.careerRecommendations
           : [],
-        personalityType: profile.personalityType || null,
+        personalityType: approved ? profile.personalityType || null : null,
       },
     });
   } catch (err) {

@@ -21,6 +21,8 @@ const Dashboard = () => {
     user_name: user?.name || "User",
     available_tests: [],
     top_careers: [],
+    submission_approved: false,
+    submission_status: "not_submitted",
   });
 
   useEffect(() => {
@@ -47,6 +49,8 @@ const Dashboard = () => {
           user_name: d.user?.name || user?.name || "User",
           available_tests: d.available_tests || [],
           top_careers: d.top_careers || [],
+          submission_approved: !!d.submission_approved,
+          submission_status: d.submission_status || "not_submitted",
         });
 
         if ((d.tests_in_progress ?? 0) > 0) {
@@ -88,6 +92,7 @@ const Dashboard = () => {
   ];
 
   const careerIcons = [di3, di2, di1];
+  const hasPendingSubmission = stats.submission_status === "pending";
 
   return (
     <div className="mx-auto max-w-7xl min-h-screen p-8 pb-12">
@@ -142,6 +147,13 @@ const Dashboard = () => {
                     Continue Test
                   </Link>
                 )}
+              </div>
+            )}
+
+            {hasPendingSubmission && (
+              <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                <p className="text-sm text-[#0F1729] font-semibold">Your test has been submitted for admin approval.</p>
+                <p className="text-sm text-[#65758B] mt-1">Your dashboard report and results will appear after the admin approves your submission.</p>
               </div>
             )}
 
@@ -209,12 +221,18 @@ const Dashboard = () => {
                 </p>
               )}
 
-              <Link
-                to="/result"
-                className="block w-full mt-4 text-[#188B8B] font-medium text-center hover:underline"
-              >
-                View All Matches →
-              </Link>
+              {stats.submission_approved ? (
+                <Link
+                  to="/result"
+                  className="block w-full mt-4 text-[#188B8B] font-medium text-center hover:underline"
+                >
+                  View All Matches →
+                </Link>
+              ) : (
+                <p className="mt-4 text-center text-sm text-[#65758B]">
+                  Results will appear here after admin approval.
+                </p>
+              )}
             </div>
 
             {/* Book Counselling */}
