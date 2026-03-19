@@ -13,7 +13,7 @@ import { usePackageData } from "../context/PackageContext";
 
 const getQuestionMeta = (question) => {
   if (typeof question === "string") {
-    return { text: question, questionType: "likert5", reverseScored: false, correctOption: null, marks: 1, dimension: "" };
+    return { text: question, questionType: "likert5", reverseScored: false, correctOption: null, marks: 1, dimension: "", options: [] };
   }
   return {
     text: question?.text || "",
@@ -23,15 +23,31 @@ const getQuestionMeta = (question) => {
     marks: Number(question?.marks) || 1,
     dimension: question?.dimension || "",
     subsection: question?.subsection || "",
+    options: Array.isArray(question?.options) ? question.options : [],
   };
 };
 
-const getOptionsByType = (questionType) => {
+const getOptionsByType = (questionMeta) => {
+  if (Array.isArray(questionMeta?.options) && questionMeta.options.length > 0) {
+    return questionMeta.options.map((option, index) => ({
+      label: option?.label || `Option ${index + 1}`,
+      value: option?.value != null ? Number(option.value) : index + 1,
+      score: option?.score != null && option.score !== "" ? Number(option.score) : null,
+    }));
+  }
+  const questionType = questionMeta?.questionType;
   if (questionType === "hspq_abc") {
     return [
-      { label: "A (True)", value: 1 },
-      { label: "B (Sometimes)", value: 2 },
-      { label: "C (False)", value: 3 },
+      { label: "A (True)", value: 1, score: 3 },
+      { label: "B (Sometimes)", value: 2, score: 2 },
+      { label: "C (False)", value: 3, score: 1 },
+    ];
+  }
+  if (questionType === "profile_choice") {
+    return [
+      { label: "Option A", value: 1, score: 1 },
+      { label: "Option B", value: 2, score: 1 },
+      { label: "Option C", value: 3, score: 1 },
     ];
   }
   if (questionType === "objective") {
@@ -161,9 +177,15 @@ const Livetest = () => {
           max = qq.marks;
           points = qq.correctOption != null && Number(ans) === Number(qq.correctOption) ? qq.marks : 0;
         } else if (qq.questionType === "hspq_abc") {
-          const base = Number(ans) === 1 ? 3 : Number(ans) === 2 ? 2 : 1;
+          const selectedOption = getOptionsByType(qq).find((option) => Number(option.value) === Number(ans));
+          const base = selectedOption?.score ?? (Number(ans) === 1 ? 3 : Number(ans) === 2 ? 2 : 1);
           points = qq.reverseScored ? 4 - base : base;
           max = 3;
+        } else if (qq.questionType === "profile_choice") {
+          const optionScores = getOptionsByType(qq).map((option) => option.score ?? 1);
+          const selectedOption = getOptionsByType(qq).find((option) => Number(option.value) === Number(ans));
+          points = selectedOption?.score ?? 1;
+          max = Math.max(...optionScores, 1);
         } else {
           const base = Number(ans) || 0;
           points = qq.reverseScored ? 6 - base : base;
@@ -311,7 +333,7 @@ const Livetest = () => {
             <div className="space-y-4 mb-6">
               {questions.map((question, idx) => {
                 const questionMeta = getQuestionMeta(question);
-                const options = getOptionsByType(questionMeta.questionType);
+                const options = getOptionsByType(questionMeta);
                 const answer = answers[key(String(resolvedSectionId), idx)];
                 const showSubsectionTitle =
                   questionMeta.subsection &&

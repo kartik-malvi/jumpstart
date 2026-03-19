@@ -11,6 +11,7 @@ const defaultSections = SECTIONS.map((section, idx) => ({
   questions: (LIVETEST_QUESTIONS[idx] || []).map((q, qIdx) => ({
     id: `${section.id}-${qIdx + 1}`,
     text: q,
+    options: [],
     correctOption: null,
     marks: 1,
   })),
@@ -114,11 +115,11 @@ export const getSelectedSections = (activePackage) => {
 };
 
 export const getPackageSheetTemplateCsv = () => [
-  "packageName,priceLabel,features,description,status,section,subsection,durationMinutes,question,questionType,dimension,reverseScored,correctOption,marks",
-  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 1,Self Awareness,20,"I am someone who is talkative and outgoing",likert5,Extraversion,false,,1',
-  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 1,Self Awareness,20,"I see myself as someone who is reserved and quiet",likert5,Extraversion,true,,1',
-  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 2,Career Aptitude,25,"I find it easy to start conversations with new people",hspq_abc,Warmth,false,,1',
-  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 2,Career Aptitude,25,"Sample objective question",objective,Logical Reasoning,false,2,2',
+  "packageName,priceLabel,features,description,status,section,subsection,durationMinutes,question,questionType,dimension,reverseScored,option1,option2,option3,option4,option5,correctOption,marks",
+  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 1,Self Awareness,20,"I am someone who is talkative and outgoing",likert5,Extraversion,false,,,,,,1',
+  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 1,Self Awareness,20,"I see myself as someone who is reserved and quiet",likert5,Extraversion,true,,,,,,1',
+  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 2,Career Aptitude,25,"I find it easy to start conversations with new people",hspq_abc,Warmth,false,"A (True)","B (Sometimes)","C (False)",,,1',
+  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 2,Career Aptitude,25,"BOOK is to READING as FORK is to:",objective,Logical Reasoning,false,KITCHEN,EATING,METAL,COOKING,,2,2',
 ].join("\n");
 
 export const getQuestionsTemplateCsv = getPackageSheetTemplateCsv;

@@ -111,6 +111,11 @@ const parseSheetRows = (input) => {
 
   return body
     .map((cols) => {
+      const buildOptions = (...values) =>
+        values
+          .filter(Boolean)
+          .map((label, index) => ({ label, value: index + 1, score: null }));
+
       if (!headers.length) {
         return {
           packageName: '',
@@ -125,8 +130,9 @@ const parseSheetRows = (input) => {
           questionType: cols[4] || 'likert5',
           dimension: cols[5] || '',
           reverseScored: String(cols[6]).toLowerCase() === 'true',
-          correctOption: cols[7] ? Number(cols[7]) : null,
-          marks: Number(cols[8]) || 1,
+          options: buildOptions(cols[7], cols[8], cols[9], cols[10], cols[11]),
+          correctOption: cols[12] ? Number(cols[12]) : null,
+          marks: Number(cols[13]) || 1,
         };
       }
 
@@ -143,6 +149,13 @@ const parseSheetRows = (input) => {
         questionType: getValue(cols, 'questiontype', 'question_type') || 'likert5',
         dimension: getValue(cols, 'dimension') || '',
         reverseScored: String(getValue(cols, 'reversescored', 'reverse_scored')).toLowerCase() === 'true',
+        options: buildOptions(
+          getValue(cols, 'option1', 'option_1'),
+          getValue(cols, 'option2', 'option_2'),
+          getValue(cols, 'option3', 'option_3'),
+          getValue(cols, 'option4', 'option_4'),
+          getValue(cols, 'option5', 'option_5')
+        ),
         correctOption: getValue(cols, 'correctoption', 'correct_option')
           ? Number(getValue(cols, 'correctoption', 'correct_option'))
           : null,
@@ -172,6 +185,7 @@ const provideNewPackageForm = () => ({
           dimension: '',
           subsection: '',
           reverseScored: false,
+          options: [],
           correctOption: null,
           marks: 1,
         },
@@ -242,7 +256,7 @@ const Settings = () => {
   const addSection = () => {
     setPackageForm((prev) => ({
       ...prev,
-      sections: [...(prev.sections || []), { id: Date.now(), name: `Section ${(prev.sections || []).length + 1}`, durationMinutes: 20, questions: [{ text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 }] }],
+      sections: [...(prev.sections || []), { id: Date.now(), name: `Section ${(prev.sections || []).length + 1}`, durationMinutes: 20, questions: [{ text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, options: [], correctOption: null, marks: 1 }] }],
     }));
   };
 
@@ -264,7 +278,7 @@ const Settings = () => {
     setPackageForm((prev) => ({
       ...prev,
       sections: (prev.sections || []).map((s) =>
-        s.id === sectionId ? { ...s, questions: [...(s.questions || []), { text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 }] } : s
+        s.id === sectionId ? { ...s, questions: [...(s.questions || []), { text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, options: [], correctOption: null, marks: 1 }] } : s
       ),
     }));
   };
@@ -276,8 +290,8 @@ const Settings = () => {
         if (s.id !== sectionId) return s;
         const next = [...(s.questions || [])];
         const existing = typeof next[qIdx] === 'string'
-          ? { text: next[qIdx], questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 }
-          : (next[qIdx] || { text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 });
+          ? { text: next[qIdx], questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, options: [], correctOption: null, marks: 1 }
+          : (next[qIdx] || { text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, options: [], correctOption: null, marks: 1 });
         next[qIdx] = { ...existing, [key]: value };
         return { ...s, questions: next };
       }),
@@ -290,7 +304,7 @@ const Settings = () => {
       sections: (prev.sections || []).map((s) => {
         if (s.id !== sectionId) return s;
         const next = (s.questions || []).filter((_, index) => index !== qIdx);
-        return { ...s, questions: next.length ? next : [{ text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 }] };
+        return { ...s, questions: next.length ? next : [{ text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, options: [], correctOption: null, marks: 1 }] };
       }),
     }));
   };
@@ -319,13 +333,14 @@ const Settings = () => {
               dimension: row.dimension || '',
               subsection: row.subsection || '',
               reverseScored: !!row.reverseScored,
+              options: row.options || [],
               correctOption: row.correctOption,
               marks: row.marks || 1,
             }],
           });
         } else {
           const existingQuestions = (sections[idx].questions || []).map((q) =>
-            typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 } : q
+            typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, options: [], correctOption: null, marks: 1 } : q
           );
           sections[idx] = {
             ...sections[idx],
@@ -336,6 +351,7 @@ const Settings = () => {
               dimension: row.dimension || '',
               subsection: row.subsection || '',
               reverseScored: !!row.reverseScored,
+              options: row.options || [],
               correctOption: row.correctOption,
               marks: row.marks || 1,
             }],
@@ -424,12 +440,13 @@ const Settings = () => {
         ...s,
         name: (s.name || '').trim(),
         questions: (s.questions || [])
-          .map((q) => (typeof q === 'string' ? { text: q.trim(), questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 } : {
+          .map((q) => (typeof q === 'string' ? { text: q.trim(), questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, options: [], correctOption: null, marks: 1 } : {
             text: (q.text || '').trim(),
             questionType: q.questionType || 'likert5',
             dimension: q.dimension || '',
             subsection: q.subsection || '',
             reverseScored: !!q.reverseScored,
+            options: Array.isArray(q.options) ? q.options.filter((option) => option?.label) : [],
             correctOption: q.correctOption != null ? Number(q.correctOption) : null,
             marks: q.marks != null ? Number(q.marks) : 1,
           }))
@@ -895,8 +912,8 @@ const Settings = () => {
                     <button type="button" onClick={handleDownloadAnswerKeyTemplate} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50"><Download size={14} /> Answer Key Only</button>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Columns: `packageName`, `priceLabel`, `features`, `description`, `status`, `section`, `subsection(optional)`, `durationMinutes`, `question`, `questionType`, `dimension`, `reverseScored`, `correctOption`, `marks`</p>
-                <textarea value={sheetRowsInput} onChange={(e) => setSheetRowsInput(e.target.value)} rows={5} className="mt-3 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" placeholder={'Career Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 1\tSubsection A\t20\tI am outgoing\tlikert5\tExtraversion\tfalse\t\t1\nCareer Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 1\tSubsection A\t20\tI keep options open\tlikert5\tConscientiousness\ttrue\t\t1\nCareer Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 2\tSubsection B\t25\tSample objective question\tobjective\tLogical Reasoning\tfalse\t2\t2'} />
+                <p className="text-xs text-gray-500 mt-1">Columns: `packageName`, `priceLabel`, `features`, `description`, `status`, `section`, `subsection(optional)`, `durationMinutes`, `question`, `questionType`, `dimension`, `reverseScored`, `option1` ... `option5`, `correctOption`, `marks`</p>
+                <textarea value={sheetRowsInput} onChange={(e) => setSheetRowsInput(e.target.value)} rows={5} className="mt-3 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" placeholder={'Career Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 1\tSubsection A\t20\tI am outgoing\tlikert5\tExtraversion\tfalse\t\t\t\t\t\t\t1\nCareer Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 1\tSubsection A\t20\tI keep options open\tlikert5\tConscientiousness\ttrue\t\t\t\t\t\t\t1\nCareer Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 2\tSubsection B\t25\tBOOK is to READING as FORK is to:\tobjective\tLogical Reasoning\tfalse\tKITCHEN\tEATING\tMETAL\tCOOKING\t\t2\t2'} />
                 <button type="button" onClick={handleImportFromSheets} className="mt-3 px-4 py-2 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-sm font-semibold hover:bg-teal-50">Import Rows</button>
               </div>
 
@@ -921,17 +938,35 @@ const Settings = () => {
 
                     <div className="space-y-2">
                       {(section.questions || []).map((q, qIdx) => {
-                        const question = typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 } : q;
+                        const question = typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, options: [], correctOption: null, marks: 1 } : q;
                         return (
-                        <div key={`${section.id}-${qIdx}`} className="grid grid-cols-1 md:grid-cols-7 gap-2">
+                        <div key={`${section.id}-${qIdx}`} className="grid grid-cols-1 md:grid-cols-8 gap-2">
                           <input value={question.text || ''} onChange={(e) => updateQuestion(section.id, qIdx, 'text', e.target.value)} className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" placeholder={`Question ${qIdx + 1}`} />
                           <select value={question.questionType || 'likert5'} onChange={(e) => updateQuestion(section.id, qIdx, 'questionType', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100">
                             <option value="likert5">Likert 1-5</option>
                             <option value="hspq_abc">HSPQ A/B/C</option>
+                            <option value="profile_choice">Profile Choice</option>
                             <option value="objective">Objective (Answer Key)</option>
                           </select>
                           <input value={question.subsection || ''} onChange={(e) => updateQuestion(section.id, qIdx, 'subsection', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100" placeholder="Subsection" />
                           <input value={question.dimension || ''} onChange={(e) => updateQuestion(section.id, qIdx, 'dimension', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100" placeholder="Dimension" />
+                          <input
+                            value={(question.options || []).map((option) => option.label).join(" | ")}
+                            onChange={(e) =>
+                              updateQuestion(
+                                section.id,
+                                qIdx,
+                                'options',
+                                e.target.value
+                                  .split('|')
+                                  .map((label) => label.trim())
+                                  .filter(Boolean)
+                                  .map((label, index) => ({ label, value: index + 1, score: null }))
+                              )
+                            }
+                            className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100"
+                            placeholder="Options: A | B | C"
+                          />
                           <label className="inline-flex items-center gap-2 px-2 py-2 rounded-lg border border-gray-200 text-xs">
                             <input type="checkbox" checked={!!question.reverseScored} onChange={(e) => updateQuestion(section.id, qIdx, 'reverseScored', e.target.checked)} />
                             Reverse

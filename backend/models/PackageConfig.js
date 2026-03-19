@@ -6,12 +6,25 @@ const questionSchema = new mongoose.Schema(
     text: { type: String, required: true, trim: true },
     questionType: {
       type: String,
-      enum: ["likert5", "hspq_abc", "objective"],
+      enum: ["likert5", "hspq_abc", "objective", "profile_choice"],
       default: "likert5",
     },
     dimension: { type: String, default: "" },
     subsection: { type: String, default: "" },
     reverseScored: { type: Boolean, default: false },
+    options: {
+      type: [
+        new mongoose.Schema(
+          {
+            label: { type: String, required: true, trim: true },
+            value: { type: Number, required: true },
+            score: { type: Number, default: null },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     correctOption: { type: Number, default: null },
     marks: { type: Number, default: 1 },
   },

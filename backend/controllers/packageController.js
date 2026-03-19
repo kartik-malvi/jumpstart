@@ -10,12 +10,21 @@ const slugify = (value = "") =>
 const normalizeQuestion = (question = {}, qIdx = 0) => ({
   id: question.id || `q-${Date.now()}-${qIdx}`,
   text: (question.text || "").trim(),
-  questionType: ["likert5", "hspq_abc", "objective"].includes(question.questionType)
+  questionType: ["likert5", "hspq_abc", "objective", "profile_choice"].includes(question.questionType)
     ? question.questionType
     : "likert5",
   dimension: question.dimension || "",
   subsection: question.subsection || "",
   reverseScored: !!question.reverseScored,
+  options: Array.isArray(question.options)
+    ? question.options
+        .map((option, index) => ({
+          label: (option?.label || "").trim(),
+          value: option?.value != null ? Number(option.value) : index + 1,
+          score: option?.score != null && option.score !== "" ? Number(option.score) : null,
+        }))
+        .filter((option) => option.label)
+    : [],
   correctOption: question.correctOption != null ? Number(question.correctOption) : null,
   marks: Number(question.marks) || 1,
 });
