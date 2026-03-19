@@ -12,17 +12,25 @@ const toInitials = (name = "") =>
 
 const formatRupees = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
-const getSubmissionStatus = (user) => {
-  if (user.submissionApprovalStatus === "approved") return "Approved";
-  if ((user.testsCompleted || 0) > 0) return "Submitted";
-  if ((user.testsInProgress || 0) > 0) return "In Review";
-  return "Submitted";
-};
-
 const getSubmissionDate = (user) => {
   const testResultDate = user.resultProfile?.testResults?.[0]?.completedAt;
   const progressDate = user.testProgress?.updatedAt;
   return testResultDate || progressDate || user.updatedAt || user.createdAt;
+};
+
+const buildLegacySubmission = (user) => {
+  if ((user.testsCompleted || 0) <= 0 && !(user.testProgress && user.testProgress.updatedAt)) return null;
+  return {
+    submissionId: `legacy-${String(user._id)}`,
+    packageName: user.resultProfile?.personalityType?.title || user.subscription || "Basic",
+    type: user.subscription || "Basic",
+    submittedAt: getSubmissionDate(user),
+    approvedAt: user.submissionApprovedAt || null,
+    status: user.submissionApprovalStatus === "approved" ? "Approved" : (user.testsCompleted || 0) > 0 ? "Submitted" : "In Review",
+    duration: "--",
+    scoringSnapshot: null,
+    resultProfileSnapshot: user.resultProfile || null,
+  };
 };
 
 const buildMonthlySeries = (users, payments) => {
@@ -146,6 +154,13 @@ const resetSubmissionApproval = (user) => {
   user.submissionApprovedAt = null;
 };
 
+const applyApprovedSubmission = (user, submission) => {
+  user.resultProfile = submission?.resultProfileSnapshot || user.resultProfile;
+  user.submissionApprovalStatus = "approved";
+  user.submissionApprovedAt = submission?.approvedAt || new Date();
+  user.reportsReady = Array.isArray(user.resultProfile?.testResults) ? user.resultProfile.testResults.length : (user.reportsReady || 0);
+};
+
 const buildAdminPayload = (users) => {
   const usersTable = users.map(sanitizeUser);
 
@@ -168,17 +183,24 @@ const buildAdminPayload = (users) => {
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const submissions = users
-    .filter((u) => (u.testsCompleted || 0) > 0 || (u.testProgress && u.testProgress.updatedAt))
-    .map((u) => ({
-      id: String(u._id),
-      name: u.name,
-      email: u.email,
-      initials: toInitials(u.name),
-      type: u.subscription || "Basic",
-      date: getSubmissionDate(u),
-      duration: "--",
-      status: getSubmissionStatus(u),
-    }))
+    .flatMap((u) => {
+      const history = Array.isArray(u.submissionHistory) && u.submissionHistory.length > 0
+        ? u.submissionHistory
+        : [buildLegacySubmission(u)].filter(Boolean);
+
+      return history.map((submission) => ({
+        id: submission.submissionId,
+        userId: String(u._id),
+        name: u.name,
+        email: u.email,
+        initials: toInitials(u.name),
+        type: submission.type || u.subscription || "Basic",
+        packageName: submission.packageName || "",
+        date: submission.submittedAt || getSubmissionDate(u),
+        duration: submission.duration || "--",
+        status: submission.status || "Submitted",
+      }));
+    })
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const publishedResults = users
@@ -263,7 +285,7 @@ const buildAdminPayload = (users) => {
 const loadUsers = () =>
   User.find({})
     .select(
-      "name email mobile subscription role status submissionApprovalStatus submissionApprovedAt testsCompleted testsInProgress reportsReady resultProfile testProgress payments activities lastLoginAt createdAt updatedAt"
+      "name email mobile subscription role status submissionApprovalStatus submissionApprovedAt testsCompleted testsInProgress reportsReady resultProfile testProgress payments submissionHistory activities lastLoginAt createdAt updatedAt"
     )
     .lean();
 
@@ -349,28 +371,47 @@ export const deleteSelectedActivityLogs = async (req, res) => {
 
 export const deleteSubmissionByAdmin = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId, submissionId } = req.params;
     const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ success: false, msg: "User not found" });
     }
 
-    user.resultProfile = {
-      overallScore: null,
-      overallPercentile: "",
-      completedTestsCount: 0,
-      totalTestsCount: 0,
-      careerPathwaysCount: 0,
-      testResults: [],
-      strengths: [],
-      careerRecommendations: [],
-      personalityType: null,
-    };
-    user.testsCompleted = 0;
-    user.testsInProgress = 0;
-    user.reportsReady = 0;
-    resetSubmissionApproval(user);
+    const originalHistory = Array.isArray(user.submissionHistory) ? user.submissionHistory : [];
+    const targetSubmission = originalHistory.find((item) => item.submissionId === submissionId);
+    if (!targetSubmission) {
+      return res.status(404).json({ success: false, msg: "Submission not found" });
+    }
+
+    user.submissionHistory = originalHistory.filter((item) => item.submissionId !== submissionId);
+
+    if (targetSubmission.status === "Approved") {
+      const latestApproved = [...user.submissionHistory]
+        .filter((item) => item.status === "Approved")
+        .sort((a, b) => new Date(b.approvedAt || b.submittedAt) - new Date(a.approvedAt || a.submittedAt))[0];
+
+      if (latestApproved) {
+        applyApprovedSubmission(user, latestApproved);
+      } else {
+        user.resultProfile = {
+          overallScore: null,
+          overallPercentile: "",
+          completedTestsCount: 0,
+          totalTestsCount: 0,
+          careerPathwaysCount: 0,
+          testResults: [],
+          strengths: [],
+          careerRecommendations: [],
+          personalityType: null,
+        };
+        resetSubmissionApproval(user);
+        user.reportsReady = 0;
+      }
+    }
+
+    user.testsCompleted = user.submissionHistory.length;
+    user.testsInProgress = Math.max(0, user.testsInProgress || 0);
     user.testProgress = {
       sectionId: 1,
       questionIndex: 0,
@@ -387,7 +428,7 @@ export const deleteSubmissionByAdmin = async (req, res) => {
 
     await user.save();
 
-    return res.status(200).json({ success: true, data: { userId: String(user._id) } });
+    return res.status(200).json({ success: true, data: { userId: String(user._id), submissionId } });
   } catch (err) {
     console.error("Delete submission error:", err);
     return res.status(500).json({ success: false, msg: err.message || "Failed to delete submission" });
@@ -428,19 +469,21 @@ export const getPublishedResultByAdmin = async (req, res) => {
 
 export const approveSubmissionByAdmin = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId, submissionId } = req.params;
     const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ success: false, msg: "User not found" });
     }
 
-    if ((user.testsCompleted || 0) <= 0) {
-      return res.status(400).json({ success: false, msg: "This user has no submitted test to approve" });
+    const submission = (user.submissionHistory || []).find((item) => item.submissionId === submissionId);
+    if (!submission) {
+      return res.status(404).json({ success: false, msg: "Submission not found" });
     }
 
-    user.submissionApprovalStatus = "approved";
-    user.submissionApprovedAt = new Date();
+    submission.status = "Approved";
+    submission.approvedAt = new Date();
+    applyApprovedSubmission(user, submission);
 
     pushActivity(user, {
       action: `Submission approved by admin ${req.user.email}`,
@@ -454,6 +497,7 @@ export const approveSubmissionByAdmin = async (req, res) => {
       success: true,
       data: {
         userId: String(user._id),
+        submissionId,
         submissionApprovalStatus: user.submissionApprovalStatus,
         submissionApprovedAt: user.submissionApprovedAt,
       },

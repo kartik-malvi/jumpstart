@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 
 const ACTIVITY_LIMIT = 100;
+const createSubmissionId = () => `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 const pushActivity = (user, activity) => {
   user.activities = user.activities || [];
@@ -339,6 +340,18 @@ export const postTestSubmit = async (req, res) => {
     user.reportsReady = (user.reportsReady || 0) + 1;
     user.submissionApprovalStatus = "pending";
     user.submissionApprovedAt = null;
+    user.submissionHistory = user.submissionHistory || [];
+    user.submissionHistory.push({
+      submissionId: createSubmissionId(),
+      packageName: scoring?.packageName || profile?.personalityType?.title || "Package",
+      type: user.subscription || "Basic",
+      submittedAt: new Date(),
+      approvedAt: null,
+      status: "Submitted",
+      duration: "--",
+      scoringSnapshot: scoring || null,
+      resultProfileSnapshot: profile,
+    });
     user.testProgress = { sectionId: 1, questionIndex: 0, answers: {}, timeRemainingSeconds: null, updatedAt: null };
     pushActivity(user, {
       action: "Test submitted",

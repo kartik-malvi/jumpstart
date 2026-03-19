@@ -130,6 +130,24 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+    submissionHistory: [
+      {
+        submissionId: { type: String, required: true },
+        packageName: { type: String, default: "" },
+        type: { type: String, default: "Basic" },
+        submittedAt: { type: Date, default: Date.now },
+        approvedAt: { type: Date, default: null },
+        status: {
+          type: String,
+          enum: ["Submitted", "Approved"],
+          default: "Submitted",
+        },
+        duration: { type: String, default: "--" },
+        scoringSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+        resultProfileSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+      },
+    ],
+
     activities: [
       {
         action: { type: String, required: true },

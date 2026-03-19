@@ -58,7 +58,7 @@ const TestSubmissions = () => {
     setDeletingId(row.id);
     setActionError("");
     try {
-      await api.delete(`/v1/admin/submissions/${row.id}`);
+      await api.delete(`/v1/admin/submissions/${row.userId}/${row.id}`);
       await refetch();
     } catch (err) {
       setActionError(err?.response?.data?.msg || "Failed to delete submission");
@@ -77,7 +77,7 @@ const TestSubmissions = () => {
     setApprovingId(row.id);
     setActionError("");
     try {
-      await api.patch(`/v1/admin/submissions/${row.id}/approve`);
+      await api.patch(`/v1/admin/submissions/${row.userId}/${row.id}/approve`);
       await refetch();
     } catch (err) {
       setActionError(err?.response?.data?.msg || "Failed to approve submission");
@@ -178,6 +178,7 @@ const TestSubmissions = () => {
 
                     <td className="px-6 py-5 text-center">
                       <TestTypeBadge type={row.type} />
+                      {row.packageName && <p className="mt-1 text-xs text-gray-400">{row.packageName}</p>}
                     </td>
 
                     <td className="px-6 py-5 text-center text-sm text-gray-500 font-medium">{formatDateTime(row.date)}</td>
