@@ -23,6 +23,7 @@ const Dashboard = () => {
     top_careers: [],
     submission_approved: false,
     submission_status: "not_submitted",
+    pending_submission: false,
   });
 
   useEffect(() => {
@@ -51,6 +52,7 @@ const Dashboard = () => {
           top_careers: d.top_careers || [],
           submission_approved: !!d.submission_approved,
           submission_status: d.submission_status || "not_submitted",
+          pending_submission: !!d.pending_submission,
         });
 
         if ((d.tests_in_progress ?? 0) > 0) {
@@ -93,6 +95,7 @@ const Dashboard = () => {
 
   const careerIcons = [di3, di2, di1];
   const hasPendingSubmission = stats.submission_status === "pending";
+  const hasPendingUpdateWhileApproved = stats.submission_approved && stats.pending_submission;
 
   return (
     <div className="mx-auto max-w-7xl min-h-screen p-8 pb-12">
@@ -154,6 +157,13 @@ const Dashboard = () => {
               <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
                 <p className="text-sm text-[#0F1729] font-semibold">Your test has been submitted for admin approval.</p>
                 <p className="text-sm text-[#65758B] mt-1">Your dashboard report and results will appear after the admin approves your submission.</p>
+              </div>
+            )}
+
+            {hasPendingUpdateWhileApproved && (
+              <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                <p className="text-sm text-[#0F1729] font-semibold">A newer submission is waiting for admin approval.</p>
+                <p className="text-sm text-[#65758B] mt-1">Your dashboard is still showing the latest approved report until that new submission is approved.</p>
               </div>
             )}
 

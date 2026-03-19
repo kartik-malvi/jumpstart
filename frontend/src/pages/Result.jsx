@@ -55,6 +55,7 @@ const Result = () => {
     hasResults: false,
     submissionApproved: false,
     submissionStatus: "not_submitted",
+    pendingSubmission: false,
     overallScore: null,
     overallPercentile: "",
     completedTestsCount: 0,
@@ -123,6 +124,8 @@ const Result = () => {
       </div>
     );
   }
+
+  const showPendingUpdateBanner = data.submissionApproved && data.pendingSubmission;
 
   if (!hasAnyContent) {
     return (
@@ -199,6 +202,13 @@ const Result = () => {
         </div>
 
         {/* Tabs */}
+        {showPendingUpdateBanner && (
+          <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+            <p className="text-sm font-semibold text-[#0F1729]">A newer submission is waiting for admin approval.</p>
+            <p className="mt-1 text-sm text-[#65758B]">This page is showing your latest approved report until the new submission is approved.</p>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-1 border-b border-[#E1E7EF] mb-6">
           {TABS.map((tab) => (
             <button

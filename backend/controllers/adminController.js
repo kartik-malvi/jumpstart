@@ -154,6 +154,12 @@ const resetSubmissionApproval = (user) => {
   user.submissionApprovedAt = null;
 };
 
+const getSubmissionHistory = (user) => (Array.isArray(user?.submissionHistory) ? user.submissionHistory : []);
+const getLatestApprovedSubmission = (user) =>
+  getSubmissionHistory(user)
+    .filter((item) => item?.status === "Approved" && item?.resultProfileSnapshot)
+    .sort((a, b) => new Date(b?.approvedAt || b?.submittedAt || 0) - new Date(a?.approvedAt || a?.submittedAt || 0))[0] || null;
+
 const applyApprovedSubmission = (user, submission) => {
   user.resultProfile = submission?.resultProfileSnapshot || user.resultProfile;
   user.submissionApprovalStatus = "approved";
@@ -204,17 +210,20 @@ const buildAdminPayload = (users) => {
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const publishedResults = users
-    .filter((u) => u.resultProfile && u.resultProfile.overallScore != null)
-    .map((u) => ({
+    .map((u) => ({ user: u, approvedSubmission: getLatestApprovedSubmission(u) }))
+    .filter(({ user, approvedSubmission }) => (approvedSubmission?.resultProfileSnapshot || user.resultProfile)?.overallScore != null)
+    .map(({ user: u, approvedSubmission }) => {
+      const profile = approvedSubmission?.resultProfileSnapshot || u.resultProfile;
+      return ({
       id: String(u._id),
       name: u.name,
       email: u.email,
       initials: toInitials(u.name),
       type: u.subscription || "Basic",
-      date: u.updatedAt,
-      score: `${u.resultProfile.overallScore}/100`,
-      percentile: u.resultProfile.overallPercentile || "--",
-    }))
+      date: approvedSubmission?.approvedAt || u.updatedAt,
+      score: `${profile.overallScore}/100`,
+      percentile: profile.overallPercentile || "--",
+    })})
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const recentActivity = users
@@ -439,14 +448,17 @@ export const getPublishedResultByAdmin = async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findById(userId)
-      .select("name email subscription resultProfile updatedAt")
+      .select("name email subscription resultProfile submissionHistory updatedAt")
       .lean();
 
     if (!user) {
       return res.status(404).json({ success: false, msg: "User not found" });
     }
 
-    if (!user.resultProfile || user.resultProfile.overallScore == null) {
+    const approvedSubmission = getLatestApprovedSubmission(user);
+    const profile = approvedSubmission?.resultProfileSnapshot || user.resultProfile;
+
+    if (!profile || profile.overallScore == null) {
       return res.status(404).json({ success: false, msg: "Published result not found" });
     }
 
@@ -457,8 +469,8 @@ export const getPublishedResultByAdmin = async (req, res) => {
         userName: user.name,
         userEmail: user.email,
         subscription: user.subscription || "Basic",
-        generatedAt: user.updatedAt || new Date(),
-        ...user.resultProfile,
+        generatedAt: approvedSubmission?.approvedAt || user.updatedAt || new Date(),
+        ...profile,
       },
     });
   } catch (err) {

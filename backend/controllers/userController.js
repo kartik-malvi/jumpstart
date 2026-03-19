@@ -17,6 +17,15 @@ const pushActivity = (user, activity) => {
 };
 
 const isSubmissionApproved = (user) => user?.submissionApprovalStatus === "approved";
+const getSubmissionHistory = (user) => (Array.isArray(user?.submissionHistory) ? user.submissionHistory : []);
+const sortBySubmissionDateDesc = (a, b) =>
+  new Date(b?.approvedAt || b?.submittedAt || 0) - new Date(a?.approvedAt || a?.submittedAt || 0);
+const getLatestApprovedSubmission = (user) =>
+  getSubmissionHistory(user)
+    .filter((item) => item?.status === "Approved" && item?.resultProfileSnapshot)
+    .sort(sortBySubmissionDateDesc)[0] || null;
+const getLatestSubmission = (user) =>
+  getSubmissionHistory(user).sort((a, b) => new Date(b?.submittedAt || 0) - new Date(a?.submittedAt || 0))[0] || null;
 
 const DEFAULT_AVAILABLE_TESTS = [
   { title: "Aptitude Assessment", durationMinutes: 22, totalQuestions: 30, status: "not_started" },
@@ -46,10 +55,16 @@ export const init = async (req, res) => {
       availableTests = DEFAULT_AVAILABLE_TESTS;
     }
 
-    // Prefer career matches from resultProfile (test results) over user.topCareers
-    const approved = isSubmissionApproved(user);
+    const latestApprovedSubmission = getLatestApprovedSubmission(user);
+    const latestSubmission = getLatestSubmission(user);
+    const approved = !!latestApprovedSubmission || isSubmissionApproved(user);
+    const pendingSubmission =
+      !!latestSubmission &&
+      latestSubmission.status !== "Approved" &&
+      (!latestApprovedSubmission ||
+        new Date(latestSubmission.submittedAt || 0) > new Date(latestApprovedSubmission.approvedAt || latestApprovedSubmission.submittedAt || 0));
     let topCareers = [];
-    const profile = user.resultProfile || {};
+    const profile = latestApprovedSubmission?.resultProfileSnapshot || user.resultProfile || {};
     if (approved && Array.isArray(profile.careerRecommendations) && profile.careerRecommendations.length > 0) {
       topCareers = profile.careerRecommendations.map((c) => ({
         title: c.title,
@@ -59,7 +74,9 @@ export const init = async (req, res) => {
       topCareers = user.topCareers;
     }
 
-    const testsCompleted = approved ? user.testsCompleted ?? 0 : 0;
+    const testsCompleted = approved
+      ? getSubmissionHistory(user).filter((item) => item.status === "Approved").length || user.testsCompleted || 0
+      : 0;
     const reportsReady = approved ? (profile.testResults?.length ?? user.reportsReady ?? testsCompleted) : 0;
 
     return res.status(200).json({
@@ -77,7 +94,8 @@ export const init = async (req, res) => {
         available_tests: availableTests,
         top_careers: topCareers,
         submission_approved: approved,
-        submission_status: approved ? "approved" : (user.testsCompleted || 0) > 0 ? "pending" : "not_submitted",
+        submission_status: approved ? "approved" : getSubmissionHistory(user).length > 0 ? "pending" : "not_submitted",
+        pending_submission: pendingSubmission,
       },
     });
   } catch (err) {
@@ -103,8 +121,15 @@ export const getResults = async (req, res) => {
       });
     }
 
-    const profile = user.resultProfile || {};
-    const approved = isSubmissionApproved(user);
+    const latestApprovedSubmission = getLatestApprovedSubmission(user);
+    const latestSubmission = getLatestSubmission(user);
+    const profile = latestApprovedSubmission?.resultProfileSnapshot || user.resultProfile || {};
+    const approved = !!latestApprovedSubmission || isSubmissionApproved(user);
+    const pendingSubmission =
+      !!latestSubmission &&
+      latestSubmission.status !== "Approved" &&
+      (!latestApprovedSubmission ||
+        new Date(latestSubmission.submittedAt || 0) > new Date(latestApprovedSubmission.approvedAt || latestApprovedSubmission.submittedAt || 0));
     const hasAnyResults = approved && (
       (profile.testResults && profile.testResults.length > 0) ||
       (profile.strengths && profile.strengths.length > 0) ||
@@ -117,10 +142,11 @@ export const getResults = async (req, res) => {
       data: {
         hasResults: !!hasAnyResults,
         submissionApproved: approved,
-        submissionStatus: approved ? "approved" : (user.testsCompleted || 0) > 0 ? "pending" : "not_submitted",
+        submissionStatus: approved ? "approved" : getSubmissionHistory(user).length > 0 ? "pending" : "not_submitted",
+        pendingSubmission,
         overallScore: approved ? profile.overallScore ?? null : null,
         overallPercentile: approved ? profile.overallPercentile || "" : "",
-        completedTestsCount: approved ? profile.completedTestsCount ?? user.testsCompleted ?? 0 : 0,
+        completedTestsCount: approved ? profile.completedTestsCount ?? getSubmissionHistory(user).filter((item) => item.status === "Approved").length ?? 0 : 0,
         totalTestsCount: approved ? profile.totalTestsCount ?? 0 : 0,
         careerPathwaysCount: approved ? profile.careerPathwaysCount ?? 0 : 0,
         testResults: approved && Array.isArray(profile.testResults) ? profile.testResults : [],
@@ -334,12 +360,15 @@ export const postTestSubmit = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ success: false, msg: "User not found" });
 
-    user.resultProfile = profile;
+    const latestApprovedSubmission = getLatestApprovedSubmission(user);
+    if (!latestApprovedSubmission) {
+      user.resultProfile = profile;
+      user.submissionApprovalStatus = "pending";
+      user.submissionApprovedAt = null;
+      user.reportsReady = (user.reportsReady || 0) + 1;
+    }
     user.testsCompleted = (user.testsCompleted || 0) + 1;
     user.testsInProgress = Math.max(0, (user.testsInProgress || 0) - 1);
-    user.reportsReady = (user.reportsReady || 0) + 1;
-    user.submissionApprovalStatus = "pending";
-    user.submissionApprovedAt = null;
     user.submissionHistory = user.submissionHistory || [];
     user.submissionHistory.push({
       submissionId: createSubmissionId(),
@@ -367,7 +396,7 @@ export const postTestSubmit = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: { resultProfile: user.resultProfile },
+      data: { resultProfile: latestApprovedSubmission?.resultProfileSnapshot || user.resultProfile },
     });
   } catch (err) {
     console.error("Test submit error:", err);
