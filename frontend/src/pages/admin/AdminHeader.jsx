@@ -17,6 +17,33 @@ const initialsFromName = (name = "") =>
     .map((part) => part[0]?.toUpperCase() || "")
     .join("");
 
+const playNotificationBell = () => {
+  if (typeof window === "undefined") return;
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) return;
+
+  const ctx = new AudioContextCtor();
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.18);
+
+  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+
+  oscillator.connect(gain);
+  gain.connect(ctx.destination);
+
+  oscillator.start();
+  oscillator.stop(ctx.currentTime + 0.52);
+  oscillator.onended = () => {
+    ctx.close().catch(() => {});
+  };
+};
+
 const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
@@ -26,6 +53,8 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const profileRef = useRef(null);
   const notificationRef = useRef(null);
+  const latestNotificationRef = useRef(null);
+  const hasHydratedNotificationsRef = useRef(false);
 
   useEffect(() => {
     const onMouseDown = (event) => {
@@ -58,6 +87,23 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
     const createdAt = new Date(item.date).getTime();
     return Number.isFinite(createdAt) && createdAt > lastSeenAt;
   }).length;
+
+  useEffect(() => {
+    const latestNotificationTime = notifications[0]?.date ? new Date(notifications[0].date).getTime() : 0;
+    if (!Number.isFinite(latestNotificationTime) || latestNotificationTime <= 0) return;
+
+    if (!hasHydratedNotificationsRef.current) {
+      hasHydratedNotificationsRef.current = true;
+      latestNotificationRef.current = latestNotificationTime;
+      return;
+    }
+
+    if (latestNotificationRef.current && latestNotificationTime > latestNotificationRef.current) {
+      playNotificationBell();
+    }
+
+    latestNotificationRef.current = latestNotificationTime;
+  }, [notifications]);
 
   const markNotificationsRead = () => {
     const newest = notifications[0]?.date ? new Date(notifications[0].date).getTime() : Date.now();
