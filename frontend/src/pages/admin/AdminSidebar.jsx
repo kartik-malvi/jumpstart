@@ -15,9 +15,8 @@ import {
 const AdminSidebar = ({ isOpen, setIsOpen }) => {
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: "Dashboard", path: "/service/dashboard" },
-    { icon: <FileText size={20} />, label: "Records", path: "/service/testsubmissions" },
-    { icon: <CheckSquare size={20} />, label: "Tests", path: "/service/publishedresults" },
-    { icon: <CircleDot size={20} />, label: "Status", path: "/service/publishedresults" },
+    { icon: <CheckSquare size={20} />, label: "Test Submissions", path: "/service/testsubmissions" },
+    { icon: <FileText size={20} />, label: "Published Results", path: "/service/publishedresults" },
     { icon: <Users size={20} />, label: "Users", path: "/service/usermanagement" },
     { icon: <CreditCard size={20} />, label: "Payments", path: "/service/payments" },
     { icon: <BarChart3 size={20} />, label: "Analytics", path: "/service/analytics" },
