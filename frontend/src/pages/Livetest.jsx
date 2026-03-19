@@ -22,6 +22,7 @@ const getQuestionMeta = (question) => {
     correctOption: question?.correctOption ?? null,
     marks: Number(question?.marks) || 1,
     dimension: question?.dimension || "",
+    subsection: question?.subsection || "",
   };
 };
 
@@ -78,17 +79,12 @@ const Livetest = () => {
   const [pausing, setPausing] = useState(false);
   const [pauseError, setPauseError] = useState("");
 
-  const currentQuestion = questions[currentQIdx];
-  const currentMeta = getQuestionMeta(currentQuestion);
-  const currentOptions = getOptionsByType(currentMeta.questionType);
-
   const totalQuestions = selectedSections.reduce((sum, s) => sum + (s.questions?.length || 0), 0);
   const completedQuestions = selectedSections
     .filter((s) => completedIds.includes(String(s.id)) && String(s.id) !== String(resolvedSectionId))
     .reduce((sum, s) => sum + (s.questions?.length || 0), 0);
 
   const key = (s, q) => `${s}-${q}`;
-  const currentAnswer = answers[key(String(resolvedSectionId), currentQIdx)];
 
   useEffect(() => {
     if (!section) return;
@@ -134,18 +130,16 @@ const Livetest = () => {
     return () => clearInterval(t);
   }, [loading]);
 
-  const handleOptionSelect = (value) => {
-    setAnswers((prev) => ({ ...prev, [key(String(resolvedSectionId), currentQIdx)]: value }));
+  const handleOptionSelect = (questionIndex, value) => {
+    setCurrentQIdx(questionIndex);
+    setAnswers((prev) => ({ ...prev, [key(String(resolvedSectionId), questionIndex)]: value }));
   };
 
-  const globalQuestionNumber = completedQuestions + currentQIdx + 1;
-  const progressPercent = totalQuestions > 0 ? Math.round((globalQuestionNumber / totalQuestions) * 100) : 0;
-
-  const goPrev = () => {
-    if (currentQIdx > 0) {
-      setCurrentQIdx(currentQIdx - 1);
-    }
-  };
+  const answeredInCurrentSection = questions.reduce((sum, _, idx) => (
+    answers[key(String(resolvedSectionId), idx)] != null ? sum + 1 : sum
+  ), 0);
+  const answeredQuestions = completedQuestions + answeredInCurrentSection;
+  const progressPercent = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
 
   const submitTest = () => {
     const sectionScores = selectedSections.map((s) => {
@@ -254,12 +248,7 @@ const Livetest = () => {
     }
   };
 
-  const goNext = () => {
-    if (currentQIdx < questionsInSection - 1) {
-      setCurrentQIdx(currentQIdx + 1);
-      return;
-    }
-
+  const handleFinishSection = () => {
     const updatedCompleted = Array.from(new Set([...completedIds, String(resolvedSectionId)]));
     saveCompletedSectionIds(updatedCompleted);
 
@@ -321,33 +310,63 @@ const Livetest = () => {
         </div>
 
         <div className="px-5 sm:px-8 py-8">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <div className="flex items-center justify-between gap-4 text-sm text-[#65758B] mb-3">
-              <p>Question {globalQuestionNumber} of {totalQuestions}</p>
+              <p>Answered {answeredQuestions} of {totalQuestions}</p>
               <p className="font-semibold">{progressPercent}% Complete</p>
             </div>
             <div className="h-2 bg-[#E1E7EF] rounded-full overflow-hidden mb-6">
               <div className="h-full bg-[#188B8B] rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
             </div>
 
-            <div className="bg-white rounded-2xl border border-[#E1E7EF] shadow-sm p-5 sm:p-8 mb-6">
-              <p className="text-lg sm:text-xl font-semibold text-[#0F1729] mb-6">{currentMeta.text}</p>
-              <div className="space-y-3">
-                {currentOptions.map((opt) => (
-                  <label key={opt.value} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition ${currentAnswer === opt.value ? "border-[#188B8B] bg-[rgba(24,139,139,0.06)]" : "border-[#E1E7EF] bg-white hover:border-gray-300"}`}>
-                    <input type="radio" name="dynamic-option" value={opt.value} checked={currentAnswer === opt.value} onChange={() => handleOptionSelect(opt.value)} className="w-4 h-4 text-[#188B8B] border-gray-300 focus:ring-[#188B8B]" />
-                    <span className="text-sm font-medium text-[#0F1729]">{opt.label}</span>
-                  </label>
-                ))}
-              </div>
+            <div className="space-y-4 mb-6">
+              {questions.map((question, idx) => {
+                const questionMeta = getQuestionMeta(question);
+                const options = getOptionsByType(questionMeta.questionType);
+                const answer = answers[key(String(resolvedSectionId), idx)];
+                const showSubsectionTitle =
+                  questionMeta.subsection &&
+                  questionMeta.subsection !== getQuestionMeta(questions[idx - 1])?.subsection;
+
+                return (
+                  <div key={`${resolvedSectionId}-${idx}`} className="space-y-4">
+                    {showSubsectionTitle && (
+                      <div className="rounded-2xl border border-[#CFE8E8] bg-[#F5FBFB] px-4 py-3">
+                        <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#188B8B]">Subsection</p>
+                        <p className="mt-1 text-base font-semibold text-[#0F1729]">{questionMeta.subsection}</p>
+                      </div>
+                    )}
+
+                    <div className="bg-white rounded-2xl border border-[#E1E7EF] shadow-sm p-5 sm:p-8">
+                      <div className="flex items-start justify-between gap-4 mb-6">
+                        <p className="text-sm font-semibold text-[#188B8B]">Question {completedQuestions + idx + 1}</p>
+                        {answer != null && <p className="text-xs font-semibold text-emerald-600">Answered</p>}
+                      </div>
+                      <p className="text-lg sm:text-xl font-semibold text-[#0F1729] mb-6">{questionMeta.text}</p>
+                      <div className="space-y-3">
+                        {options.map((opt) => (
+                          <label key={opt.value} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition ${answer === opt.value ? "border-[#188B8B] bg-[rgba(24,139,139,0.06)]" : "border-[#E1E7EF] bg-white hover:border-gray-300"}`}>
+                            <input
+                              type="radio"
+                              name={`section-${resolvedSectionId}-question-${idx}`}
+                              value={opt.value}
+                              checked={answer === opt.value}
+                              onChange={() => handleOptionSelect(idx, opt.value)}
+                              className="w-4 h-4 text-[#188B8B] border-gray-300 focus:ring-[#188B8B]"
+                            />
+                            <span className="text-sm font-medium text-[#0F1729]">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="flex items-center justify-between gap-4">
-              <button type="button" onClick={goPrev} disabled={currentQIdx === 0} className="min-w-[120px] px-6 py-3 border-2 border-[#188B8B] text-[#188B8B] rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-teal-50">
-                Previous
-              </button>
-              <button type="button" onClick={goNext} className="min-w-[120px] px-6 py-3 bg-[#F7C767] text-[#0F1729] rounded-2xl font-semibold hover:bg-[#f4bb40]">
-                {currentQIdx < questionsInSection - 1 ? "Next" : willHaveRemaining ? "Finish Section" : "Submit Test"}
+            <div className="flex items-center justify-end gap-4">
+              <button type="button" onClick={handleFinishSection} className="min-w-[160px] px-6 py-3 bg-[#F7C767] text-[#0F1729] rounded-2xl font-semibold hover:bg-[#f4bb40]">
+                {willHaveRemaining ? "Finish Section" : "Submit Test"}
               </button>
             </div>
 

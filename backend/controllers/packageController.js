@@ -14,6 +14,7 @@ const normalizeQuestion = (question = {}, qIdx = 0) => ({
     ? question.questionType
     : "likert5",
   dimension: question.dimension || "",
+  subsection: question.subsection || "",
   reverseScored: !!question.reverseScored,
   correctOption: question.correctOption != null ? Number(question.correctOption) : null,
   marks: Number(question.marks) || 1,

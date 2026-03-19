@@ -3,7 +3,7 @@ import { Bell, Download, Mail, MoreVertical, X } from 'lucide-react';
 import api from '../../api/api';
 import DEFAULT_PACKAGE, {
   getAnswerKeyTemplateCsv,
-  getQuestionsTemplateCsv,
+  getPackageSheetTemplateCsv,
   getMailListTemplateCsv,
 } from '../../utils/testPackageStore';
 import { usePackageData } from '../../context/PackageContext';
@@ -51,27 +51,104 @@ const SectionHeader = ({ title, subtitle, actionLabel, onAction, secondaryLabel,
   </div>
 );
 
+const parseDelimitedLine = (line, delimiter) => {
+  const cells = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      cells.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current.trim());
+  return cells;
+};
+
 const parseSheetRows = (input) => {
   const lines = input.split('\n').map((l) => l.trim()).filter(Boolean);
   if (lines.length === 0) return [];
 
   const delimiter = lines[0].includes('\t') ? '\t' : ',';
-  const rows = lines.map((line) => line.split(delimiter).map((cell) => cell.trim()));
+  const rows = lines.map((line) => parseDelimitedLine(line, delimiter));
   const first = rows[0].map((c) => c.toLowerCase());
-  const hasHeader = first.includes('section') || first.includes('question');
+  const hasHeader =
+    first.includes('section') ||
+    first.includes('question') ||
+    first.includes('packagename') ||
+    first.includes('package_name');
+  const headers = hasHeader
+    ? rows[0].map((cell) => cell.trim().toLowerCase())
+    : [];
   const body = hasHeader ? rows.slice(1) : rows;
 
+  const getValue = (cols, ...keys) => {
+    if (!headers.length) return '';
+    for (const key of keys) {
+      const index = headers.indexOf(key);
+      if (index !== -1) return cols[index] || '';
+    }
+    return '';
+  };
+
   return body
-    .map((cols) => ({
-      sectionName: cols[0] || 'Section 1',
-      question: cols[1] || '',
-      questionType: cols[2] || 'likert5',
-      dimension: cols[3] || '',
-      reverseScored: String(cols[4]).toLowerCase() === 'true',
-      correctOption: Number(cols[5]) || null,
-      marks: Number(cols[6]) || 1,
-      durationMinutes: Number(cols[7]) || null,
-    }))
+    .map((cols) => {
+      if (!headers.length) {
+        return {
+          packageName: '',
+          priceLabel: '',
+          features: '',
+          description: '',
+          status: 'Draft',
+          sectionName: cols[0] || 'Section 1',
+          subsection: cols[1] || '',
+          durationMinutes: Number(cols[2]) || null,
+          question: cols[3] || '',
+          questionType: cols[4] || 'likert5',
+          dimension: cols[5] || '',
+          reverseScored: String(cols[6]).toLowerCase() === 'true',
+          correctOption: cols[7] ? Number(cols[7]) : null,
+          marks: Number(cols[8]) || 1,
+        };
+      }
+
+      return {
+        packageName: getValue(cols, 'packagename', 'package_name'),
+        priceLabel: getValue(cols, 'pricelabel', 'price_label', 'price'),
+        features: getValue(cols, 'features'),
+        description: getValue(cols, 'description'),
+        status: getValue(cols, 'status') || 'Draft',
+        sectionName: getValue(cols, 'section') || 'Section 1',
+        subsection: getValue(cols, 'subsection') || '',
+        durationMinutes: Number(getValue(cols, 'durationminutes', 'duration_minutes')) || null,
+        question: getValue(cols, 'question'),
+        questionType: getValue(cols, 'questiontype', 'question_type') || 'likert5',
+        dimension: getValue(cols, 'dimension') || '',
+        reverseScored: String(getValue(cols, 'reversescored', 'reverse_scored')).toLowerCase() === 'true',
+        correctOption: getValue(cols, 'correctoption', 'correct_option')
+          ? Number(getValue(cols, 'correctoption', 'correct_option'))
+          : null,
+        marks: Number(getValue(cols, 'marks')) || 1,
+      };
+    })
     .filter((r) => r.question);
 };
 
@@ -93,6 +170,7 @@ const provideNewPackageForm = () => ({
           text: '',
           questionType: 'likert5',
           dimension: '',
+          subsection: '',
           reverseScored: false,
           correctOption: null,
           marks: 1,
@@ -164,7 +242,7 @@ const Settings = () => {
   const addSection = () => {
     setPackageForm((prev) => ({
       ...prev,
-      sections: [...(prev.sections || []), { id: Date.now(), name: `Section ${(prev.sections || []).length + 1}`, durationMinutes: 20, questions: [{ text: '', questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 }] }],
+      sections: [...(prev.sections || []), { id: Date.now(), name: `Section ${(prev.sections || []).length + 1}`, durationMinutes: 20, questions: [{ text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 }] }],
     }));
   };
 
@@ -186,7 +264,7 @@ const Settings = () => {
     setPackageForm((prev) => ({
       ...prev,
       sections: (prev.sections || []).map((s) =>
-        s.id === sectionId ? { ...s, questions: [...(s.questions || []), { text: '', questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 }] } : s
+        s.id === sectionId ? { ...s, questions: [...(s.questions || []), { text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 }] } : s
       ),
     }));
   };
@@ -198,8 +276,8 @@ const Settings = () => {
         if (s.id !== sectionId) return s;
         const next = [...(s.questions || [])];
         const existing = typeof next[qIdx] === 'string'
-          ? { text: next[qIdx], questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 }
-          : (next[qIdx] || { text: '', questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 });
+          ? { text: next[qIdx], questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 }
+          : (next[qIdx] || { text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 });
         next[qIdx] = { ...existing, [key]: value };
         return { ...s, questions: next };
       }),
@@ -212,7 +290,7 @@ const Settings = () => {
       sections: (prev.sections || []).map((s) => {
         if (s.id !== sectionId) return s;
         const next = (s.questions || []).filter((_, index) => index !== qIdx);
-        return { ...s, questions: next.length ? next : [{ text: '', questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 }] };
+        return { ...s, questions: next.length ? next : [{ text: '', questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 }] };
       }),
     }));
   };
@@ -222,6 +300,11 @@ const Settings = () => {
     if (rows.length === 0) return;
 
     setPackageForm((prev) => {
+      const packageName = rows.find((row) => row.packageName)?.packageName || prev.name || '';
+      const priceLabel = rows.find((row) => row.priceLabel)?.priceLabel || prev.price || '';
+      const features = rows.find((row) => row.features)?.features || prev.features || '';
+      const description = rows.find((row) => row.description)?.description || prev.description || '';
+      const status = rows.find((row) => row.status)?.status || prev.status || 'Draft';
       const sections = [...(prev.sections || [])];
       rows.forEach((row) => {
         const idx = sections.findIndex((s) => s.name.toLowerCase() === row.sectionName.toLowerCase());
@@ -234,6 +317,7 @@ const Settings = () => {
               text: row.question,
               questionType: row.questionType || 'likert5',
               dimension: row.dimension || '',
+              subsection: row.subsection || '',
               reverseScored: !!row.reverseScored,
               correctOption: row.correctOption,
               marks: row.marks || 1,
@@ -241,7 +325,7 @@ const Settings = () => {
           });
         } else {
           const existingQuestions = (sections[idx].questions || []).map((q) =>
-            typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 } : q
+            typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 } : q
           );
           sections[idx] = {
             ...sections[idx],
@@ -250,6 +334,7 @@ const Settings = () => {
               text: row.question,
               questionType: row.questionType || 'likert5',
               dimension: row.dimension || '',
+              subsection: row.subsection || '',
               reverseScored: !!row.reverseScored,
               correctOption: row.correctOption,
               marks: row.marks || 1,
@@ -257,16 +342,25 @@ const Settings = () => {
           };
         }
       });
-      return { ...prev, sections };
+      return {
+        ...prev,
+        name: packageName,
+        price: priceLabel,
+        priceLabel,
+        features,
+        description,
+        status,
+        sections,
+      };
     });
   };
 
   const handleDownloadTemplate = () => {
-    const blob = new Blob([getQuestionsTemplateCsv()], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([getPackageSheetTemplateCsv()], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'questions_template.csv';
+    a.download = 'package_import_template.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -330,10 +424,11 @@ const Settings = () => {
         ...s,
         name: (s.name || '').trim(),
         questions: (s.questions || [])
-          .map((q) => (typeof q === 'string' ? { text: q.trim(), questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 } : {
+          .map((q) => (typeof q === 'string' ? { text: q.trim(), questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 } : {
             text: (q.text || '').trim(),
             questionType: q.questionType || 'likert5',
             dimension: q.dimension || '',
+            subsection: q.subsection || '',
             reverseScored: !!q.reverseScored,
             correctOption: q.correctOption != null ? Number(q.correctOption) : null,
             marks: q.marks != null ? Number(q.marks) : 1,
@@ -796,12 +891,12 @@ const Settings = () => {
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="text-sm font-bold text-gray-800">Google Sheets Import</h4>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={handleDownloadTemplate} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50"><Download size={14} /> Questions Template</button>
-                    <button type="button" onClick={handleDownloadAnswerKeyTemplate} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50"><Download size={14} /> Answer Key Template</button>
+                    <button type="button" onClick={handleDownloadTemplate} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50"><Download size={14} /> Full Package Template</button>
+                    <button type="button" onClick={handleDownloadAnswerKeyTemplate} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-xs font-semibold hover:bg-teal-50"><Download size={14} /> Answer Key Only</button>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Columns: `section`, `question`, `questionType`, `dimension`, `reverseScored`, `correctOption`, `marks`, `durationMinutes(optional)`</p>
-                <textarea value={sheetRowsInput} onChange={(e) => setSheetRowsInput(e.target.value)} rows={4} className="mt-3 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" placeholder={'Section 1\tI am outgoing\tlikert5\tExtraversion\tfalse\t\t1\t25\nSection 1\tI keep options open\tlikert5\tConscientiousness\ttrue\t\t1\t25\nSection 1\tI start conversations easily\thspq_abc\tWarmth\tfalse\t\t1\t25'} />
+                <p className="text-xs text-gray-500 mt-1">Columns: `packageName`, `priceLabel`, `features`, `description`, `status`, `section`, `subsection(optional)`, `durationMinutes`, `question`, `questionType`, `dimension`, `reverseScored`, `correctOption`, `marks`</p>
+                <textarea value={sheetRowsInput} onChange={(e) => setSheetRowsInput(e.target.value)} rows={5} className="mt-3 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" placeholder={'Career Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 1\tSubsection A\t20\tI am outgoing\tlikert5\tExtraversion\tfalse\t\t1\nCareer Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 1\tSubsection A\t20\tI keep options open\tlikert5\tConscientiousness\ttrue\t\t1\nCareer Discovery Basic\t₹999\t2 sections, 4 questions\tSample package from one sheet\tDraft\tSection 2\tSubsection B\t25\tSample objective question\tobjective\tLogical Reasoning\tfalse\t2\t2'} />
                 <button type="button" onClick={handleImportFromSheets} className="mt-3 px-4 py-2 rounded-lg border border-[#14b8a6] text-[#14b8a6] text-sm font-semibold hover:bg-teal-50">Import Rows</button>
               </div>
 
@@ -826,15 +921,16 @@ const Settings = () => {
 
                     <div className="space-y-2">
                       {(section.questions || []).map((q, qIdx) => {
-                        const question = typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', reverseScored: false, correctOption: null, marks: 1 } : q;
+                        const question = typeof q === 'string' ? { text: q, questionType: 'likert5', dimension: '', subsection: '', reverseScored: false, correctOption: null, marks: 1 } : q;
                         return (
-                        <div key={`${section.id}-${qIdx}`} className="grid grid-cols-1 md:grid-cols-6 gap-2">
+                        <div key={`${section.id}-${qIdx}`} className="grid grid-cols-1 md:grid-cols-7 gap-2">
                           <input value={question.text || ''} onChange={(e) => updateQuestion(section.id, qIdx, 'text', e.target.value)} className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-teal-100" placeholder={`Question ${qIdx + 1}`} />
                           <select value={question.questionType || 'likert5'} onChange={(e) => updateQuestion(section.id, qIdx, 'questionType', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100">
                             <option value="likert5">Likert 1-5</option>
                             <option value="hspq_abc">HSPQ A/B/C</option>
                             <option value="objective">Objective (Answer Key)</option>
                           </select>
+                          <input value={question.subsection || ''} onChange={(e) => updateQuestion(section.id, qIdx, 'subsection', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100" placeholder="Subsection" />
                           <input value={question.dimension || ''} onChange={(e) => updateQuestion(section.id, qIdx, 'dimension', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-teal-100" placeholder="Dimension" />
                           <label className="inline-flex items-center gap-2 px-2 py-2 rounded-lg border border-gray-200 text-xs">
                             <input type="checkbox" checked={!!question.reverseScored} onChange={(e) => updateQuestion(section.id, qIdx, 'reverseScored', e.target.checked)} />

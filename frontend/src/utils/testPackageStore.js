@@ -113,12 +113,15 @@ export const getSelectedSections = (activePackage) => {
   return selectedIds.map((id) => sectionMap.get(id)).filter(Boolean);
 };
 
-export const getQuestionsTemplateCsv = () => [
-  "section,question,questionType,dimension,reverseScored,durationMinutes",
-  'Section 1,"I am someone who is talkative and outgoing",likert5,Extraversion,false,25',
-  'Section 1,"I see myself as someone who is reserved and quiet",likert5,Extraversion,true,25',
-  'Section 1,"I find it easy to start conversations with new people",abc3,Warmth,false,25',
+export const getPackageSheetTemplateCsv = () => [
+  "packageName,priceLabel,features,description,status,section,subsection,durationMinutes,question,questionType,dimension,reverseScored,correctOption,marks",
+  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 1,Self Awareness,20,"I am someone who is talkative and outgoing",likert5,Extraversion,false,,1',
+  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 1,Self Awareness,20,"I see myself as someone who is reserved and quiet",likert5,Extraversion,true,,1',
+  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 2,Career Aptitude,25,"I find it easy to start conversations with new people",hspq_abc,Warmth,false,,1',
+  'Career Discovery Basic,₹999,"2 sections, 4 questions","Single-sheet package import sample",Draft,Section 2,Career Aptitude,25,"Sample objective question",objective,Logical Reasoning,false,2,2',
 ].join("\n");
+
+export const getQuestionsTemplateCsv = getPackageSheetTemplateCsv;
 
 export const getAnswerKeyTemplateCsv = () => [
   "section,question,questionType,correctOption,marks",

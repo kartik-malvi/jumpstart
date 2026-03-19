@@ -15,6 +15,14 @@ const Careerdetail = () => {
   ];
   const [activeTab, setActiveTab] = useState("Overview");
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadPdf = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-[#fafafa] p-6 px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 md:pt-10 pb-16 sm:pb-20 md:pb-[100px]">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -29,10 +37,10 @@ const Careerdetail = () => {
             </p>
           </div>
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border-2 border-[#188B8B] text-[#188B8B] rounded-[14px] bg-white shadow-sm">
+            <button type="button" onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 border-2 border-[#188B8B] text-[#188B8B] rounded-[14px] bg-white shadow-sm">
               <img src={printIcon} alt="Print" className="w-4 h-4" /> Print
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#F59F0A] text-black font-medium rounded-[14px] shadow">
+            <button type="button" onClick={handleDownloadPdf} className="flex items-center gap-2 px-4 py-2 bg-[#F59F0A] text-black font-medium rounded-[14px] shadow">
               <img src={downloadIcon} alt="Download" className="w-4 h-4" />{" "}
               Download PDF
             </button>

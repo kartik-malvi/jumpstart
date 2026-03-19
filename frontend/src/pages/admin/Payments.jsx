@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { formatDateTime } from "../../utils/adminFormat";
+import { downloadCsv, openPrintPdf } from "../../utils/adminExport";
 
 const formatRupees = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -84,6 +85,39 @@ const Payments = () => {
   const pendingRevenue = paymentsData.filter((p) => p.status === "Pending").reduce((sum, p) => sum + (p.amount || 0), 0);
   const refundedRevenue = 0;
 
+  const handleExportAll = () => {
+    const rows = [
+      ["Order ID", "Student", "Email", "Package", "Amount", "Method", "Date", "Status"],
+      ...filteredPayments.map((item) => [
+        item.id,
+        item.name,
+        item.email,
+        item.package,
+        item.amountLabel,
+        item.method,
+        formatDateTime(item.date),
+        item.status,
+      ]),
+    ];
+
+    downloadCsv("payments-export.csv", rows);
+    openPrintPdf("Jumpstart Payments Report", [
+      {
+        title: "Payments",
+        headers: ["Order ID", "Student", "Package", "Amount", "Method", "Date", "Status"],
+        rows: filteredPayments.map((item) => [
+          item.id,
+          item.name,
+          item.package,
+          item.amountLabel,
+          item.method,
+          formatDateTime(item.date),
+          item.status,
+        ]),
+      },
+    ]);
+  };
+
   return (
     <div className="flex flex-col gap-6 max-w-[1440px] mx-auto font-['Inter'] p-6 md:p-8 w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -91,7 +125,11 @@ const Payments = () => {
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Payments & Orders</h1>
           <p className="text-gray-400 text-sm font-medium">Manage transactions and refunds</p>
         </div>
-        <button className="flex items-center gap-2 border border-[#14b8a6] text-[#14b8a6] hover:bg-teal-50 px-5 py-2 rounded-xl font-bold text-sm transition-all shadow-sm self-start md:self-center">
+        <button
+          type="button"
+          onClick={handleExportAll}
+          className="flex items-center gap-2 border border-[#14b8a6] text-[#14b8a6] hover:bg-teal-50 px-5 py-2 rounded-xl font-bold text-sm transition-all shadow-sm self-start md:self-center"
+        >
           <Download size={18} />
           Export All
         </button>

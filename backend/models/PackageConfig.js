@@ -10,6 +10,7 @@ const questionSchema = new mongoose.Schema(
       default: "likert5",
     },
     dimension: { type: String, default: "" },
+    subsection: { type: String, default: "" },
     reverseScored: { type: Boolean, default: false },
     correctOption: { type: Number, default: null },
     marks: { type: Number, default: 1 },
