@@ -72,6 +72,7 @@ const Livetest = () => {
   const section = selectedSections.find((s) => String(s.id) === String(resolvedSectionId));
   const questions = section?.questions || [];
   const questionsInSection = questions.length;
+  const currentSectionIndex = selectedSections.findIndex((s) => String(s.id) === String(resolvedSectionId));
   const [currentQIdx, setCurrentQIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeRemaining, setTimeRemaining] = useState((section?.durationMinutes || 20) * 60);
@@ -248,38 +249,27 @@ const Livetest = () => {
     }
   };
 
-  const handleFinishSection = () => {
-    const updatedCompleted = Array.from(new Set([...completedIds, String(resolvedSectionId)]));
-    saveCompletedSectionIds(updatedCompleted);
+  const goToSection = async (targetIndex, markCurrentComplete = false) => {
+    const targetSection = selectedSections[targetIndex];
+    if (!targetSection) return;
 
-    const remainingSections = selectedSections.filter((s) => !updatedCompleted.includes(String(s.id)));
-
-    if (remainingSections.length === 0) {
-      submitTest();
-      return;
+    if (markCurrentComplete) {
+      const updatedCompleted = Array.from(new Set([...completedIds, String(resolvedSectionId)]));
+      saveCompletedSectionIds(updatedCompleted);
     }
 
-    const timeElapsedSeconds = (section.durationMinutes * 60) - timeRemaining;
-    const questionsSoFar = selectedSections
-      .filter((s) => updatedCompleted.includes(String(s.id)))
-      .reduce((sum, s) => sum + (s.questions?.length || 0), 0);
+    try {
+      await api.patch("/v1/user/test-progress", {
+        sectionId: String(targetSection.id),
+        questionIndex: 0,
+        answers,
+        timeRemainingSeconds: targetSection.durationMinutes ? targetSection.durationMinutes * 60 : timeRemaining,
+      });
+    } catch (err) {
+      console.error("Failed to switch section:", err?.response?.data || err.message);
+    }
 
-    navigate("/sectionbreak", {
-      replace: true,
-      state: {
-        completedSection: section.name,
-        completedSectionIndex: updatedCompleted.length,
-        totalSections: selectedSections.length,
-        questionsSoFar,
-        totalQuestions,
-        timeElapsedMinutes: Math.round(timeElapsedSeconds / 60),
-        remainingSections: remainingSections.map((s) => ({
-          id: s.id,
-          name: s.name,
-          durationMinutes: s.durationMinutes || 20,
-        })),
-      },
-    });
+    navigate(`/livetest/${targetSection.id}`, { replace: true });
   };
 
   const formatTime = (sec) => `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, "0")}`;
@@ -292,9 +282,8 @@ const Livetest = () => {
     );
   }
 
-  const willHaveRemaining = selectedSections.some(
-    (s) => !completedIds.includes(String(s.id)) && String(s.id) !== String(resolvedSectionId)
-  );
+  const hasPreviousSection = currentSectionIndex > 0;
+  const hasNextSection = currentSectionIndex < selectedSections.length - 1;
 
   return (
     <div className="min-h-screen bg-[#fafafa] px-4 sm:px-6 md:px-8 py-6 md:py-8">
@@ -364,9 +353,29 @@ const Livetest = () => {
               })}
             </div>
 
-            <div className="flex items-center justify-end gap-4">
-              <button type="button" onClick={handleFinishSection} className="min-w-[160px] px-6 py-3 bg-[#F7C767] text-[#0F1729] rounded-2xl font-semibold hover:bg-[#f4bb40]">
-                {willHaveRemaining ? "Finish Section" : "Submit Test"}
+            <div className="flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={() => goToSection(currentSectionIndex - 1)}
+                disabled={!hasPreviousSection}
+                className="min-w-[160px] px-6 py-3 border-2 border-[#188B8B] text-[#188B8B] rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-teal-50"
+              >
+                Previous Section
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (hasNextSection) {
+                    goToSection(currentSectionIndex + 1, true);
+                    return;
+                  }
+                  const updatedCompleted = Array.from(new Set([...completedIds, String(resolvedSectionId)]));
+                  saveCompletedSectionIds(updatedCompleted);
+                  submitTest();
+                }}
+                className="min-w-[160px] px-6 py-3 bg-[#F7C767] text-[#0F1729] rounded-2xl font-semibold hover:bg-[#f4bb40]"
+              >
+                {hasNextSection ? "Next Section" : "Submit Test"}
               </button>
             </div>
 
