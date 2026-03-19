@@ -7,6 +7,7 @@ import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { timeAgo } from "../../utils/adminFormat";
 
 const ADMIN_NOTIFICATION_SEEN_KEY = "admin_notification_seen_at";
+const ADMIN_NOTIFICATION_CLEARED_AT_KEY = "admin_notification_cleared_at";
 
 const initialsFromName = (name = "") =>
   name
@@ -45,7 +46,13 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
     navigate("/service/login");
   };
 
-  const notifications = (data.recentActivity || []).slice(0, 8);
+  const clearedAt = Number(localStorage.getItem(ADMIN_NOTIFICATION_CLEARED_AT_KEY) || 0);
+  const notifications = (data.recentActivity || [])
+    .filter((item) => {
+      const createdAt = new Date(item.date).getTime();
+      return Number.isFinite(createdAt) && createdAt > clearedAt;
+    })
+    .slice(0, 8);
   const lastSeenAt = Number(localStorage.getItem(ADMIN_NOTIFICATION_SEEN_KEY) || 0);
   const unreadCount = notifications.filter((item) => {
     const createdAt = new Date(item.date).getTime();
@@ -64,6 +71,13 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
       if (nextOpen) markNotificationsRead();
       return nextOpen;
     });
+  };
+
+  const handleClearNotifications = () => {
+    const newest = notifications[0]?.date ? new Date(notifications[0].date).getTime() : Date.now();
+    localStorage.setItem(ADMIN_NOTIFICATION_CLEARED_AT_KEY, String(newest));
+    localStorage.setItem(ADMIN_NOTIFICATION_SEEN_KEY, String(newest));
+    setShowNotifications(false);
   };
 
   return (
@@ -100,8 +114,20 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
           {showNotifications && (
             <div className="absolute right-0 mt-3 w-[min(90vw,24rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
               <div className="border-b border-gray-50 px-4 py-4">
-                <h3 className="text-sm font-bold text-gray-900">Notifications</h3>
-                <p className="mt-1 text-xs text-gray-400">Live updates from user and admin activity</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Notifications</h3>
+                    <p className="mt-1 text-xs text-gray-400">Live updates from user and admin activity</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearNotifications}
+                    disabled={notifications.length === 0}
+                    className="rounded-lg px-2 py-1 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-300"
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
 
               <div className="max-h-[26rem] overflow-y-auto">
