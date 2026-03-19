@@ -45,7 +45,8 @@ api.interceptors.response.use(
       console.log("Unauthorized → Logging out user…");
       localStorage.removeItem("user");
       localStorage.removeItem("token");
-      window.location.href = "/login"; // Auto redirect to login
+      const isAdminRoute = window.location.pathname.startsWith("/service");
+      window.location.href = isAdminRoute ? "/service/login" : "/login";
     }
 
     return Promise.reject(error);

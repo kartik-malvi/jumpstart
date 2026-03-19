@@ -25,6 +25,12 @@ const userSchema = new mongoose.Schema(
     lastLoginAt: { type: Date, default: null },
     resetPasswordToken: { type: String, default: null },
     resetPasswordExpiresAt: { type: Date, default: null },
+    submissionApprovalStatus: {
+      type: String,
+      enum: ["pending", "approved"],
+      default: "pending",
+    },
+    submissionApprovedAt: { type: Date, default: null },
 
     // Dashboard counters
     testsCompleted: { type: Number, default: 0 },

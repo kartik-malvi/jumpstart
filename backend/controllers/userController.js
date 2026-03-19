@@ -328,6 +328,8 @@ export const postTestSubmit = async (req, res) => {
     user.testsCompleted = (user.testsCompleted || 0) + 1;
     user.testsInProgress = Math.max(0, (user.testsInProgress || 0) - 1);
     user.reportsReady = (user.reportsReady || 0) + 1;
+    user.submissionApprovalStatus = "pending";
+    user.submissionApprovedAt = null;
     user.testProgress = { sectionId: 1, questionIndex: 0, answers: {}, timeRemainingSeconds: null, updatedAt: null };
     pushActivity(user, {
       action: "Test submitted",

@@ -3,7 +3,9 @@ import api from "../api/api";
 import DEFAULT_PACKAGE, {
   getDefaultCoupons,
   getSelectedPackageId,
+  getSelectedPackageSnapshot,
   saveSelectedPackageId as persistSelectedPackageId,
+  saveSelectedPackageSnapshot,
 } from "../utils/testPackageStore";
 import { AuthContext } from "./AuthContext";
 
@@ -24,18 +26,24 @@ export const PackageProvider = ({ children }) => {
   const [coupons, setCoupons] = useState([]);
   const [mailLists, setMailLists] = useState([]);
   const [selectedPackageId, setSelectedPackageIdState] = useState(() => getSelectedPackageId());
+  const [selectedPackageSnapshot, setSelectedPackageSnapshot] = useState(() => getSelectedPackageSnapshot());
   const [loading, setLoading] = useState(true);
 
-  const setSelectedPackageId = useCallback((id) => {
+  const setSelectedPackageId = useCallback((id, pkg = null) => {
     if (!id) return;
     const nextId = String(id);
     persistSelectedPackageId(nextId);
     setSelectedPackageIdState(nextId);
+    if (pkg && typeof pkg === "object") {
+      saveSelectedPackageSnapshot(pkg);
+      setSelectedPackageSnapshot(getSelectedPackageSnapshot());
+    }
   }, []);
 
   useEffect(() => {
     const syncSelectedPackage = () => {
       setSelectedPackageIdState(getSelectedPackageId());
+      setSelectedPackageSnapshot(getSelectedPackageSnapshot());
     };
 
     window.addEventListener("storage", syncSelectedPackage);
@@ -80,15 +88,27 @@ export const PackageProvider = ({ children }) => {
   }, [fetchData]);
 
   const activePackage = useMemo(() => {
-    if (!packages.length) return DEFAULT_PACKAGE;
+    if (!packages.length) {
+      if (selectedPackageSnapshot?.id || selectedPackageSnapshot?._id) {
+        const hasSections = Array.isArray(selectedPackageSnapshot.sections) && selectedPackageSnapshot.sections.length > 0;
+        return {
+          ...DEFAULT_PACKAGE,
+          ...selectedPackageSnapshot,
+          sections: hasSections ? selectedPackageSnapshot.sections : DEFAULT_PACKAGE.sections,
+        };
+      }
+      return DEFAULT_PACKAGE;
+    }
+
     const active =
       packages.find((p) => String(p._id || p.id) === String(selectedPackageId)) ||
+      packages.find((p) => String(p._id || p.id) === String(selectedPackageSnapshot?._id || selectedPackageSnapshot?.id || "")) ||
       packages.find((p) => p.isActive) ||
       packages[0];
     const hasSections = Array.isArray(active.sections) && active.sections.length > 0;
     const mergedSections = hasSections ? active.sections : DEFAULT_PACKAGE.sections;
     return { ...DEFAULT_PACKAGE, ...active, sections: mergedSections };
-  }, [packages, selectedPackageId]);
+  }, [packages, selectedPackageId, selectedPackageSnapshot]);
 
   return (
     <PackageContext.Provider

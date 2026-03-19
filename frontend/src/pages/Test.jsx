@@ -37,7 +37,7 @@ const Test = () => {
   }, [packages]);
 
   const handleGetStarted = (plan) => {
-    setSelectedPackageId(plan._id || plan.id);
+    setSelectedPackageId(plan._id || plan.id, plan);
     navigate("/payment", { state: { plan } });
   };
 

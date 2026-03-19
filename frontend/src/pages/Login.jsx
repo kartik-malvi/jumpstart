@@ -3,7 +3,7 @@ import logo from "../assets/logo.png";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { AuthContext } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import PasswordField from "../components/PasswordField";
 

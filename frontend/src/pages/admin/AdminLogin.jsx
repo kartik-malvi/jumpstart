@@ -1,12 +1,12 @@
 import React, { useContext, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext";
 import PasswordField from "../../components/PasswordField";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { user, login } = useContext(AuthContext);
+  const { user, login, logout } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,6 +25,7 @@ export default function AdminLogin() {
       const response = await login({ email, password });
       const nextUser = response?.data?.user;
       if (nextUser?.role !== "admin") {
+        logout();
         throw new Error("This account does not have service access");
       }
       navigate("/service/dashboard");
@@ -83,10 +84,6 @@ export default function AdminLogin() {
             {loading ? "Signing in..." : "Open Service Dashboard"}
           </button>
         </form>
-
-        <Link to="/service/forgot-password" className="mt-4 inline-block text-sm font-medium text-teal-200 hover:underline">
-          Forgot password?
-        </Link>
 
         <p className="text-sm text-white/60 mt-6">
           Password reset is available inside Service Settings after login, or another admin can reset a user password from User Management.

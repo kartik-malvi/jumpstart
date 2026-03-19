@@ -5,6 +5,7 @@ import {
   clearAllActivityLogs,
   deleteSelectedActivityLogs,
   deleteSubmissionByAdmin,
+  approveSubmissionByAdmin,
   getPublishedResultByAdmin,
   deleteUserByAdmin,
   createUserByAdmin,
@@ -48,6 +49,7 @@ router.get("/live-data", getLiveAdminData);
 router.get("/results/:userId", getPublishedResultByAdmin);
 router.delete("/activity-logs", clearAllActivityLogs);
 router.post("/activity-logs/delete-selected", deleteSelectedActivityLogs);
+router.patch("/submissions/:userId/approve", approveSubmissionByAdmin);
 router.delete("/submissions/:userId", deleteSubmissionByAdmin);
 router.post("/users", createUserByAdmin);
 router.delete("/users/:userId", deleteUserByAdmin);

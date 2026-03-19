@@ -3,6 +3,7 @@ import { LIVETEST_QUESTIONS, SECTIONS } from "../data/livetestQuestions";
 const SELECTED_SECTIONS_KEY = "selected_test_sections";
 const COMPLETED_SECTIONS_KEY = "completed_test_sections";
 const SELECTED_PACKAGE_KEY = "selected_test_package";
+const SELECTED_PACKAGE_SNAPSHOT_KEY = "selected_test_package_snapshot";
 const defaultSections = SECTIONS.map((section, idx) => ({
   id: section.id,
   name: section.title,
@@ -79,6 +80,31 @@ export const getSelectedPackageId = () => {
 export const saveSelectedPackageId = (id) => {
   if (!canUseStorage() || !id) return;
   localStorage.setItem(SELECTED_PACKAGE_KEY, String(id));
+};
+
+export const getSelectedPackageSnapshot = () => {
+  if (!canUseStorage()) return null;
+  try {
+    const raw = localStorage.getItem(SELECTED_PACKAGE_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+export const saveSelectedPackageSnapshot = (pkg) => {
+  if (!canUseStorage() || !pkg || typeof pkg !== "object") return;
+
+  const normalized = {
+    ...pkg,
+    id: pkg._id || pkg.id,
+    sections: Array.isArray(pkg.sections) ? pkg.sections : [],
+  };
+
+  localStorage.setItem(SELECTED_PACKAGE_SNAPSHOT_KEY, JSON.stringify(normalized));
 };
 
 export const getSelectedSections = (activePackage) => {

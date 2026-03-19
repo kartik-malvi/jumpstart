@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Search, ChevronDown, MoreVertical, Trash2 } from "lucide-react";
+import { Search, ChevronDown, MoreVertical, Trash2, CheckCheck } from "lucide-react";
 import api from "../../api/api";
 import useAdminLiveData from "../../hooks/useAdminLiveData";
 import { formatDateTime } from "../../utils/adminFormat";
@@ -7,6 +7,7 @@ import { formatDateTime } from "../../utils/adminFormat";
 const StatusBadge = ({ status }) => {
   const styles = {
     Submitted: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    Approved: "bg-teal-50 text-teal-700 border-teal-100",
     "In Review": "bg-orange-50 text-orange-600 border-orange-100",
     Scored: "bg-slate-50 text-slate-500 border-slate-100",
   };
@@ -29,6 +30,7 @@ const TestSubmissions = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [approvingId, setApprovingId] = useState("");
   const [actionError, setActionError] = useState("");
   const [activeMenu, setActiveMenu] = useState("");
   const { data, loading, refetch } = useAdminLiveData(5000);
@@ -65,6 +67,25 @@ const TestSubmissions = () => {
     }
   };
 
+  const handleApproveSubmission = async (row) => {
+    if (approvingId || row.status === "Approved") return;
+
+    const confirmed = window.confirm(`Approve submission for ${row.name}?`);
+    if (!confirmed) return;
+
+    setActiveMenu("");
+    setApprovingId(row.id);
+    setActionError("");
+    try {
+      await api.patch(`/v1/admin/submissions/${row.id}/approve`);
+      await refetch();
+    } catch (err) {
+      setActionError(err?.response?.data?.msg || "Failed to approve submission");
+    } finally {
+      setApprovingId("");
+    }
+  };
+
   return (
     <div className="p-6 md:p-8 max-w-[1440px] mx-auto w-full flex flex-col gap-8">
       <div className="flex flex-col gap-1">
@@ -94,6 +115,7 @@ const TestSubmissions = () => {
             >
               <option value="">All Status</option>
               <option>Submitted</option>
+              <option>Approved</option>
               <option>In Review</option>
               <option>Scored</option>
             </select>
@@ -178,8 +200,19 @@ const TestSubmissions = () => {
                         <div className="absolute right-6 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-10 overflow-hidden">
                           <button
                             type="button"
+                            onClick={() => handleApproveSubmission(row)}
+                            disabled={approvingId === row.id || row.status === "Approved"}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-white"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <CheckCheck size={14} />
+                              {approvingId === row.id ? "Approving..." : row.status === "Approved" ? "Approved" : "Approve submission"}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleDeleteSubmission(row)}
-                            disabled={deletingId === row.id}
+                            disabled={deletingId === row.id || approvingId === row.id}
                             className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-white"
                           >
                             <span className="inline-flex items-center gap-2">

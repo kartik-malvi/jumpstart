@@ -12,6 +12,7 @@ import lck from "../assets/lck.svg";
 import { GST_RATE } from "../data/testPackages";
 import api from "../api/api";
 import { usePackageData } from "../context/PackageContext";
+import { getSelectedPackageSnapshot } from "../utils/testPackageStore";
 
 const Payment = () => {
   const location = useLocation();
@@ -24,14 +25,14 @@ const Payment = () => {
   const [couponError, setCouponError] = useState("");
   const { coupons, setSelectedPackageId } = usePackageData();
 
-  const plan = location.state?.plan;
+  const plan = location.state?.plan || getSelectedPackageSnapshot();
 
   useEffect(() => {
     if (!plan || !plan.id) {
       navigate("/test", { replace: true });
       return;
     }
-    setSelectedPackageId(plan._id || plan.id);
+    setSelectedPackageId(plan._id || plan.id, plan);
   }, [plan, navigate, setSelectedPackageId]);
 
   const formatPrice = (n) => `₹${Number(n).toLocaleString("en-IN")}`;

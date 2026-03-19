@@ -33,6 +33,9 @@ const getMailTransport = () => {
     port: Number(SMTP_PORT),
     secure: process.env.SMTP_SECURE === "true" || Number(SMTP_PORT) === 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 };
 
@@ -302,7 +305,20 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await user.save();
 
-    const emailed = await sendResetEmail({ to: email, resetUrl, isAdmin });
+    let emailed = false;
+    try {
+      emailed = await sendResetEmail({ to: email, resetUrl, isAdmin });
+    } catch (mailErr) {
+      console.error("Forgot password mail error:", mailErr);
+      user.resetPasswordToken = null;
+      user.resetPasswordExpiresAt = null;
+      await user.save();
+      return res.status(502).json({
+        success: false,
+        msg: "Password reset email could not be sent right now",
+      });
+    }
+
     const payload = {
       success: true,
       msg: "If this email exists, a reset link has been sent.",
