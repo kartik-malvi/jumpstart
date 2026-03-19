@@ -1,8 +1,12 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, LogOut, Menu, Settings } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, Settings } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import useAdminLiveData from "../../hooks/useAdminLiveData";
+import { timeAgo } from "../../utils/adminFormat";
+
+const ADMIN_NOTIFICATION_SEEN_KEY = "admin_notification_seen_at";
 
 const initialsFromName = (name = "") =>
   name
@@ -15,14 +19,20 @@ const initialsFromName = (name = "") =>
 const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
+  const { data } = useAdminLiveData(5000);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const profileRef = useRef(null);
+  const notificationRef = useRef(null);
 
   useEffect(() => {
     const onMouseDown = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setShowProfileDropdown(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
       }
     };
     document.addEventListener("mousedown", onMouseDown);
@@ -33,6 +43,27 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
     logout();
     setShowLogoutConfirm(false);
     navigate("/service/login");
+  };
+
+  const notifications = (data.recentActivity || []).slice(0, 8);
+  const lastSeenAt = Number(localStorage.getItem(ADMIN_NOTIFICATION_SEEN_KEY) || 0);
+  const unreadCount = notifications.filter((item) => {
+    const createdAt = new Date(item.date).getTime();
+    return Number.isFinite(createdAt) && createdAt > lastSeenAt;
+  }).length;
+
+  const markNotificationsRead = () => {
+    const newest = notifications[0]?.date ? new Date(notifications[0].date).getTime() : Date.now();
+    localStorage.setItem(ADMIN_NOTIFICATION_SEEN_KEY, String(newest));
+  };
+
+  const toggleNotifications = () => {
+    setShowProfileDropdown(false);
+    setShowNotifications((open) => {
+      const nextOpen = !open;
+      if (nextOpen) markNotificationsRead();
+      return nextOpen;
+    });
   };
 
   return (
@@ -50,10 +81,63 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
         </div>
       </div>
 
-      <div className="relative ml-auto" ref={profileRef}>
+      <div className="ml-auto flex items-center gap-3">
+        <div className="relative" ref={notificationRef}>
+          <button
+            type="button"
+            onClick={toggleNotifications}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-[#14b8a6]/30 hover:text-[#14b8a6]"
+            aria-label="Open notifications"
+          >
+            <Bell size={18} />
+            {unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {showNotifications && (
+            <div className="absolute right-0 mt-3 w-[min(90vw,24rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
+              <div className="border-b border-gray-50 px-4 py-4">
+                <h3 className="text-sm font-bold text-gray-900">Notifications</h3>
+                <p className="mt-1 text-xs text-gray-400">Live updates from user and admin activity</p>
+              </div>
+
+              <div className="max-h-[26rem] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-gray-400">No notifications yet</div>
+                ) : (
+                  notifications.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setShowNotifications(false);
+                        navigate("/service/dashboard");
+                      }}
+                      className="flex w-full flex-col gap-1 border-b border-gray-50 px-4 py-3 text-left transition hover:bg-gray-50"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-gray-900">{item.action}</p>
+                        <span className="text-[11px] font-medium text-gray-400">{timeAgo(item.date)}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">{item.user}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="relative" ref={profileRef}>
         <button
           className="flex items-center gap-2 cursor-pointer group"
-          onClick={() => setShowProfileDropdown((open) => !open)}
+          onClick={() => {
+            setShowNotifications(false);
+            setShowProfileDropdown((open) => !open);
+          }}
         >
           <div className="w-9 h-9 bg-[#14b8a6] text-white rounded-full flex items-center justify-center font-medium text-sm border-2 border-[#14b8a61a] group-hover:border-[#14b8a644] transition-all">
             {initialsFromName(user?.name || "Admin")}
@@ -102,6 +186,7 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       <ConfirmDialog

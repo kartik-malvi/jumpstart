@@ -4,6 +4,21 @@ import { OAuth2Client } from "google-auth-library";
 import nodemailer from "nodemailer";
 import User from "../models/User.js";
 
+const ACTIVITY_LIMIT = 100;
+
+const pushActivity = (user, activity) => {
+  user.activities = user.activities || [];
+  user.activities.push({
+    action: activity.action || "Activity",
+    status: activity.status || "Completed",
+    type: activity.type || "other",
+    createdAt: activity.createdAt || new Date(),
+  });
+  if (user.activities.length > ACTIVITY_LIMIT) {
+    user.activities = user.activities.slice(-ACTIVITY_LIMIT);
+  }
+};
+
 const googleClient = process.env.GOOGLE_CLIENT_ID
   ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
   : null;
@@ -102,6 +117,13 @@ export const register = async (req, res) => {
       mobile: (mobile || "").toString().trim(),
     });
 
+    pushActivity(user, {
+      action: "Signed up",
+      status: "Completed",
+      type: "auth",
+    });
+    await user.save();
+
     return res.status(201).json({
       success: true,
       message: "Signup successful!",
@@ -158,14 +180,11 @@ export const login = async (req, res) => {
     }
 
     user.lastLoginAt = new Date();
-    user.activities = user.activities || [];
-    user.activities.push({
+    pushActivity(user, {
       action: "Logged in",
       status: "Completed",
       type: "auth",
-      createdAt: new Date(),
     });
-    if (user.activities.length > 100) user.activities = user.activities.slice(-100);
     await user.save();
 
     const token = signToken(user._id);
@@ -226,6 +245,7 @@ export const socialLogin = async (req, res) => {
     let user = await User.findOne({
       $or: [{ googleId }, { email }],
     });
+    let createdNow = false;
 
     if (user) {
       if (user.status === "Suspended") {
@@ -248,17 +268,22 @@ export const socialLogin = async (req, res) => {
         avatar,
         password: null,
       });
+      createdNow = true;
     }
 
     user.lastLoginAt = new Date();
-    user.activities = user.activities || [];
-    user.activities.push({
+    if (createdNow) {
+      pushActivity(user, {
+        action: "Signed up with Google",
+        status: "Completed",
+        type: "auth",
+      });
+    }
+    pushActivity(user, {
       action: "Logged in with Google",
       status: "Completed",
       type: "auth",
-      createdAt: new Date(),
     });
-    if (user.activities.length > 100) user.activities = user.activities.slice(-100);
     await user.save();
 
     const authToken = signToken(user._id);

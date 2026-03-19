@@ -61,7 +61,7 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
               to={item.path}
               title={item.label}
               className={({ isActive }) =>
-                `rounded-lg transition-colors flex items-center gap-3 px-3 py-2.5 md:justify-center md:px-2
+                `group relative rounded-lg transition-colors flex items-center gap-3 px-3 py-2.5 md:justify-center md:px-2
                 ${
                   isActive
                     ? "bg-[#14b8a61a] text-[#14b8a6]"
@@ -72,6 +72,9 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
             >
               {item.icon}
               <span className="text-sm font-semibold md:hidden">{item.label}</span>
+              <span className="pointer-events-none absolute left-full top-1/2 z-40 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white opacity-0 shadow-lg transition-all duration-200 group-hover:opacity-100 md:block">
+                {item.label}
+              </span>
             </NavLink>
           ))}
         </nav>
