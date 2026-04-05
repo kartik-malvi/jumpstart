@@ -78,10 +78,14 @@ export default function Signup() {
         ux_mode: "popup",
       });
 
-      window.google.accounts.id.renderButton(
-        document.getElementById("google-signup"),
-        { theme: "outline", size: "large", width: "100%" }
-      );
+      const buttonRoot = document.getElementById("google-signup");
+      const buttonWidth = Math.max(buttonRoot?.clientWidth || 0, 280);
+
+      window.google.accounts.id.renderButton(buttonRoot, {
+        theme: "outline",
+        size: "large",
+        width: buttonWidth,
+      });
     });
   }, []);
 

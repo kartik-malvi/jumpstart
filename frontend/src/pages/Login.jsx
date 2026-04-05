@@ -75,10 +75,14 @@ export default function Login() {
           ux_mode: "popup",
         });
 
-        window.google.accounts.id.renderButton(
-          document.getElementById("google-btn"),
-          { theme: "outline", size: "large", width: "100%" }
-        );
+        const buttonRoot = document.getElementById("google-btn");
+        const buttonWidth = Math.max(buttonRoot?.clientWidth || 0, 280);
+
+        window.google.accounts.id.renderButton(buttonRoot, {
+          theme: "outline",
+          size: "large",
+          width: buttonWidth,
+        });
       })
       .catch(() => {
         setError("Google Sign-In could not be loaded.");
