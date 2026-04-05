@@ -7,15 +7,26 @@ import {
 const cloneArray = (items = [], mapItem) =>
   Array.isArray(items) ? items.map((item) => mapItem(item || {})) : [];
 
+const toNullableNumber = (value) => {
+  if (value == null || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const toNumberOrFallback = (value, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
 const cloneFactorResult = (item = {}) => ({
   id: item.id || "",
   key: item.key || "",
   label: item.label || "",
-  score: item.score == null ? null : Number(item.score),
-  rawScore: item.rawScore == null ? null : Number(item.rawScore),
-  maxScore: item.maxScore == null ? null : Number(item.maxScore),
-  average: item.average == null ? null : Number(item.average),
-  percentage: item.percentage == null ? null : Number(item.percentage),
+  score: toNullableNumber(item.score),
+  rawScore: toNullableNumber(item.rawScore),
+  maxScore: toNullableNumber(item.maxScore),
+  average: toNullableNumber(item.average),
+  percentage: toNullableNumber(item.percentage),
   band: item.band || "",
   status: item.status || "",
   description: item.description || "",
@@ -33,12 +44,11 @@ const cloneSubsection = (subsection = {}) => ({
   id: subsection.id || "",
   key: subsection.key || "",
   label: subsection.label || "",
-  score: subsection.score == null ? null : Number(subsection.score),
-  rawScore: subsection.rawScore == null ? null : Number(subsection.rawScore),
-  maxScore: subsection.maxScore == null ? null : Number(subsection.maxScore),
-  average: subsection.average == null ? null : Number(subsection.average),
-  percentage:
-    subsection.percentage == null ? null : Number(subsection.percentage),
+  score: toNullableNumber(subsection.score),
+  rawScore: toNullableNumber(subsection.rawScore),
+  maxScore: toNullableNumber(subsection.maxScore),
+  average: toNullableNumber(subsection.average),
+  percentage: toNullableNumber(subsection.percentage),
   band: subsection.band || "",
   status: subsection.status || "",
   description: subsection.description || "",
@@ -92,34 +102,30 @@ export const createEmptyResultPublication = () => ({
 });
 
 export const cloneResultProfile = (profile = {}) => ({
-  overallScore:
-    profile?.overallScore == null ? null : Number(profile.overallScore),
+  overallScore: toNullableNumber(profile?.overallScore),
   overallPercentile: String(profile?.overallPercentile || ""),
-  completedTestsCount: Number(profile?.completedTestsCount || 0),
-  totalTestsCount: Number(profile?.totalTestsCount || 0),
-  careerPathwaysCount: Number(profile?.careerPathwaysCount || 0),
+  completedTestsCount: toNumberOrFallback(profile?.completedTestsCount, 0),
+  totalTestsCount: toNumberOrFallback(profile?.totalTestsCount, 0),
+  careerPathwaysCount: toNumberOrFallback(profile?.careerPathwaysCount, 0),
   testResults: cloneArray(profile?.testResults, (item) => ({
     testName: item.testName || "",
     sectionName: item.sectionName || "",
-    sectionId: item.sectionId == null ? null : Number(item.sectionId),
+    sectionId: toNullableNumber(item.sectionId),
     completedAt: item.completedAt || null,
-    score: item.score == null ? null : Number(item.score),
-    maxScore: item.maxScore == null ? null : Number(item.maxScore),
+    score: toNullableNumber(item.score),
+    maxScore: toNullableNumber(item.maxScore),
     reportUrl: item.reportUrl || "",
     interpretation: item.interpretation || "",
   })),
   sectionBreakdown: cloneArray(profile?.sectionBreakdown, (section) => ({
-    sectionId: section.sectionId == null ? null : Number(section.sectionId),
+    sectionId: toNullableNumber(section.sectionId),
     title: section.title || "",
-    score: section.score == null ? null : Number(section.score),
-    maxScore: section.maxScore == null ? null : Number(section.maxScore),
-    average: section.average == null ? null : Number(section.average),
-    percentage:
-      section.percentage == null ? null : Number(section.percentage),
-    answeredCount:
-      section.answeredCount == null ? null : Number(section.answeredCount),
-    totalQuestions:
-      section.totalQuestions == null ? null : Number(section.totalQuestions),
+    score: toNullableNumber(section.score),
+    maxScore: toNullableNumber(section.maxScore),
+    average: toNullableNumber(section.average),
+    percentage: toNullableNumber(section.percentage),
+    answeredCount: toNullableNumber(section.answeredCount),
+    totalQuestions: toNullableNumber(section.totalQuestions),
     status: section.status || "",
     interpretation: section.interpretation || "",
     careerImplication: section.careerImplication || "",
@@ -134,13 +140,12 @@ export const cloneResultProfile = (profile = {}) => ({
   })),
   strengths: cloneArray(profile?.strengths, (item) => ({
     name: item.name || "",
-    value: item.value == null ? null : Number(item.value),
+    value: toNullableNumber(item.value),
     desc: item.desc || "",
   })),
   careerRecommendations: cloneArray(profile?.careerRecommendations, (career) => ({
     title: career.title || "",
-    matchPercent:
-      career.matchPercent == null ? null : Number(career.matchPercent),
+    matchPercent: toNullableNumber(career.matchPercent),
     description: career.description || "",
     skills: Array.isArray(career.skills) ? career.skills : [],
     salaryRange: career.salaryRange || "",
@@ -152,7 +157,7 @@ export const cloneResultProfile = (profile = {}) => ({
     description: profile?.personalityType?.description || "",
     traits: cloneArray(profile?.personalityType?.traits, (trait) => ({
       name: trait.name || "",
-      value: trait.value == null ? null : Number(trait.value),
+      value: toNullableNumber(trait.value),
     })),
   },
   reviewSummary: {
@@ -169,10 +174,7 @@ export const cloneResultProfile = (profile = {}) => ({
   },
   metadata: {
     algorithmKey: profile?.metadata?.algorithmKey || "",
-    overallMaxScore:
-      profile?.metadata?.overallMaxScore == null
-        ? null
-        : Number(profile.metadata.overallMaxScore),
+    overallMaxScore: toNullableNumber(profile?.metadata?.overallMaxScore),
     packageId: profile?.metadata?.packageId || "",
     scoringGuideSources: Array.isArray(profile?.metadata?.scoringGuideSources)
       ? profile.metadata.scoringGuideSources

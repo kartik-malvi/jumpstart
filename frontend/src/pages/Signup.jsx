@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, BadgeCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BadgeCheck, Eye, EyeOff, Sparkles } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
 import {
   apiUnavailableMessage,
@@ -29,6 +29,8 @@ export default function Signup() {
   });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -201,27 +203,61 @@ export default function Signup() {
               <label className="mb-2 block text-sm font-semibold text-[#344054]">
                 Password
               </label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                className="h-[56px] w-full rounded-2xl border border-[#E1E7EF] px-4 text-sm text-[#0F1729] outline-none focus:border-[#188B8B]"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  className="h-[56px] w-full rounded-2xl border border-[#E1E7EF] px-4 pr-12 text-sm text-[#0F1729] outline-none focus:border-[#188B8B]"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute inset-y-0 right-0 flex items-center px-4 text-[#65758B] transition hover:text-[#0F1729]"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
             <div>
               <label className="mb-2 block text-sm font-semibold text-[#344054]">
                 Confirm Password
               </label>
-              <input
-                type="password"
-                value={form.password_confirmation}
-                onChange={(e) =>
-                  handleChange("password_confirmation", e.target.value)
-                }
-                className="h-[56px] w-full rounded-2xl border border-[#E1E7EF] px-4 text-sm text-[#0F1729] outline-none focus:border-[#188B8B]"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={form.password_confirmation}
+                  onChange={(e) =>
+                    handleChange("password_confirmation", e.target.value)
+                  }
+                  className="h-[56px] w-full rounded-2xl border border-[#E1E7EF] px-4 pr-12 text-sm text-[#0F1729] outline-none focus:border-[#188B8B]"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowConfirmPassword((current) => !current)
+                  }
+                  aria-label={
+                    showConfirmPassword
+                      ? "Hide confirm password"
+                      : "Show confirm password"
+                  }
+                  className="absolute inset-y-0 right-0 flex items-center px-4 text-[#65758B] transition hover:text-[#0F1729]"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {msg ? (

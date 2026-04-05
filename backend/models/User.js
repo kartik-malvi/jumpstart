@@ -1,5 +1,52 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import { cloneResultProfile } from "../utils/assessmentReports.js";
+
+const toPlainObject = (value) =>
+  value?.toObject ? value.toObject() : value || {};
+
+const toNullableNumber = (value) => {
+  if (value == null || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const toNumberOrFallback = (value, fallback) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const sanitizeTestProgress = (progress = {}) => {
+  const rawProgress = toPlainObject(progress);
+
+  return {
+    ...rawProgress,
+    sectionId: toNumberOrFallback(rawProgress.sectionId, 1),
+    questionIndex: toNumberOrFallback(rawProgress.questionIndex, 0),
+    completedSectionIds: Array.isArray(rawProgress.completedSectionIds)
+      ? rawProgress.completedSectionIds
+          .map((value) => toNullableNumber(value))
+          .filter(Number.isFinite)
+      : [],
+    timeRemainingSeconds: toNullableNumber(rawProgress.timeRemainingSeconds),
+    answers:
+      rawProgress.answers && typeof rawProgress.answers === "object"
+        ? rawProgress.answers
+        : {},
+  };
+};
+
+const sanitizeAssessmentReports = (reports = []) =>
+  Array.isArray(reports)
+    ? reports.map((report) => {
+        const rawReport = toPlainObject(report);
+        return {
+          ...rawReport,
+          attemptNumber: toNumberOrFallback(rawReport.attemptNumber, 1),
+          profile: cloneResultProfile(rawReport.profile),
+        };
+      })
+    : [];
 
 const testResultSchema = new mongoose.Schema(
   {
@@ -268,6 +315,13 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.pre("validate", function (next) {
+  this.resultProfile = cloneResultProfile(this.resultProfile);
+  this.assessmentReports = sanitizeAssessmentReports(this.assessmentReports);
+  this.testProgress = sanitizeTestProgress(this.testProgress);
+  next();
+});
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password") || !this.password) return next();
