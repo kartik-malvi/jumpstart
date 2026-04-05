@@ -1,134 +1,90 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
-
+@import url("https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&family=Poppins:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
+:root {
+  color: #0f1729;
+  background: #f8fafc;
+  font-family: "Inter", sans-serif;
+}
 
-/* common css  */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #0f1729;
+  font-family: "Inter", sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-    font-family: "Poppins", sans-serif;
-
+  font-family: "Poppins", sans-serif;
 }
 
-.font-inter{
-    font-family: Inter, sans-serif;
-}
-.custom-list li::marker {
-  color: #188B8B; /* bullet color */
-}
-
-
-p {
-    font-family: Inter;
-font-weight: 400;
-font-style: Regular;
-font-size: 18px;
-line-height: 28px;
-letter-spacing: 0%;
-vertical-align: middle;
-color: #65758B;
-
+a,
+button,
+input,
+select,
+textarea {
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
-nav a {
-    font-family: Inter;
-font-weight: 500;
-font-style: Medium;
-font-size: 14px;
-line-height: 20px;
-letter-spacing: 0%;
-vertical-align: middle;
-color: #0F1729;
-
+.font-inter {
+  font-family: "Inter", sans-serif;
 }
-
 
 .primary-btn {
-    background: #F59F0A;
-    box-shadow: 0px 2px 4px -2px #0000001A;
-    height: 44;
-    opacity: 1;
-    top: 14px;
-    left: 1266.97px;
-    border-radius: 14px;
-    color: #0F1729;
-    font-family: Inter;
-    font-weight: 600;
-    font-style: Semi Bold;
-    font-size: 14px;
-    line-height: 20px;
-    letter-spacing: 0%;
-    text-align: center;
-    vertical-align: middle;
-
-    padding: 13px 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #f59f0a;
+  padding: 0.85rem 1.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f1729;
+  box-shadow: 0 14px 32px rgba(245, 159, 10, 0.22);
 }
 
+.primary-btn:hover {
+  transform: translateY(-1px);
+  background: #e89206;
+}
 
 .secondary-btn {
-    border: 2px solid #188B8B;
-    height: 44;
-    opacity: 1;
-    top: 437px;
-    left: 264.3px;
-    border-radius: 14px;
-    border-width: 2px;
-    color: #188B8B;
-    padding: 13px 34px;
-    font-family: Inter;
-    font-weight: 600;
-    font-style: Semi Bold;
-    font-size: 14px;
-    line-height: 20px;
-    letter-spacing: 0%;
-    text-align: center;
-    vertical-align: middle;
-
-
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: 2px solid #188b8b;
+  padding: 0.85rem 1.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #188b8b;
 }
 
-/* common css  */
-
-
-
-
-/* home page */
-
-.hero-section {
-    background: linear-gradient(135deg, #DCF9F9 0%, #FAFAFA 50%, #FAFAFA 100%);
-
+.secondary-btn:hover {
+  background: rgba(24, 139, 139, 0.06);
 }
 
-
-.gradient-hero{
-        box-shadow: 0px 4px 40px 0px #188b8b2b;
-    border-radius: 24px;
+.surface-card {
+  border: 1px solid #e2e8f0;
+  background: white;
+  box-shadow: 0 16px 40px rgba(15, 23, 41, 0.06);
 }
-
-.test {
-    font-family: "Poppins", sans-serif;
-    font-weight: 600;
-    font-style: SemiBold;
-    font-size: 60px;
-    line-height: 60px;
-    letter-spacing: 0%;
-    vertical-align: middle;
-
-}
-
-/* home page */
-
-
-
-/* dashboard page */
-.custom_dropshadow{
-box-shadow: 0px 2px 8px 0px #00000014;
-border: 1px solid #E1E7EF;
-}
-
-
-/* dashboard page  */

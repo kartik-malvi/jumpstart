@@ -1,36 +1,79 @@
-import React, { useEffect, useState, useContext } from "react";
-import { Link } from "react-router-dom";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  CheckCircle2,
+  Clock3,
+  FileText,
+  HelpCircle,
+  PlayCircle,
+  UserRound,
+  Video,
+  CalendarDays,
+  ArrowRight,
+  Trophy,
+} from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
-import { CheckCircle, PlayCircle, FileText, Video, Calendar, HelpCircle } from "lucide-react";
 import api from "../api/api";
-import di1 from "../assets/di1.png";
-import di2 from "../assets/di2.png";
-import di3 from "../assets/di3.png";
 
-const Dashboard = () => {
+const defaultState = {
+  tests_completed: 0,
+  tests_in_progress: 0,
+  reports_ready: 0,
+  counselling_sessions: 0,
+  user: null,
+  selected_package_id: "",
+  purchased_packages: [],
+  top_careers: [],
+  result_status: "not_submitted",
+};
+
+const getPackageStatusMeta = (status) => {
+  if (status === "completed") {
+    return {
+      label: "Completed",
+      badgeClass: "bg-emerald-50 text-emerald-700",
+      cardClass: "border-[#D8F3E6] bg-emerald-50/30 hover:border-[#52B788]",
+      actionLabel: "Retake Assessment",
+      clickable: true,
+    };
+  }
+
+  if (status === "in_progress") {
+    return {
+      label: "In Progress",
+      badgeClass: "bg-amber-50 text-amber-700",
+      cardClass: "border-[#F8D38B] bg-[#FFF9EE] hover:border-[#F2B53D]",
+      actionLabel: "Resume Assessment",
+      clickable: true,
+    };
+  }
+
+  return {
+    label: "Not Completed",
+    badgeClass: "bg-slate-100 text-slate-700",
+    cardClass: "border-[#E1E7EF] bg-white hover:border-[#9BD9D6] hover:bg-[#F6FDFC]",
+    actionLabel: "Open Assessment",
+    clickable: true,
+  };
+};
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { token, user, updateUser } = useContext(AuthContext);
-
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    tests_completed: 0,
-    tests_in_progress: 0,
-    reports_ready: 0,
-    counselling_sessions: 0,
-    user_name: user?.name || "User",
-    available_tests: [],
-    top_careers: [],
-  });
-  const [profileForm, setProfileForm] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    mobile: user?.mobile || "",
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [profileMessage, setProfileMessage] = useState("");
-  const [profileError, setProfileError] = useState("");
+  const [stats, setStats] = useState(defaultState);
+  const [packageError, setPackageError] = useState("");
+  const [openingPackageId, setOpeningPackageId] = useState("");
+  const [showAdminAccessNotice, setShowAdminAccessNotice] = useState(
+    Boolean(location.state?.adminAccessRequired)
+  );
+
+  useEffect(() => {
+    if (!location.state?.adminAccessRequired) return;
+
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     if (!token) {
@@ -41,349 +84,415 @@ const Dashboard = () => {
     api
       .get("/v1/user/init")
       .then((res) => {
-        const d = res?.data?.data;
-
-        if (!d) {
-          console.warn("API returned no data, using fallback");
-          return;
-        }
+        const data = res?.data?.data;
+        if (!data) return;
 
         setStats({
-          tests_completed: d.tests_completed ?? 0,
-          tests_in_progress: d.tests_in_progress ?? 0,
-          reports_ready: d.reports_ready ?? 0,
-          counselling_sessions: d.counselling_sessions ?? 0,
-          user_name: d.user?.name || user?.name || "User",
-          available_tests: d.available_tests || [],
-          top_careers: d.top_careers || [],
+          tests_completed: data.tests_completed ?? 0,
+          tests_in_progress: data.tests_in_progress ?? 0,
+          reports_ready: data.reports_ready ?? 0,
+          counselling_sessions: data.counselling_sessions ?? 0,
+          user: data.user || user || null,
+          selected_package_id: data.user?.selectedPackageId || user?.selectedPackageId || "",
+          purchased_packages: data.purchased_packages || [],
+          top_careers: data.top_careers || [],
+          result_status: data.result_status || "not_submitted",
         });
-
-        setProfileForm((prev) => ({
-          ...prev,
-          name: d.user?.name || user?.name || "",
-          email: d.user?.email || user?.email || "",
-          mobile: user?.mobile || "",
-        }));
       })
       .catch((err) => {
-        console.error("Dashboard API Error:", err);
+        console.error("Failed to load dashboard", err);
         setStats((prev) => ({
           ...prev,
-          user_name: user?.name || "User",
+          user: user || null,
         }));
       })
       .finally(() => setLoading(false));
-
-    api
-      .get("/v1/user/profile")
-      .then((res) => {
-        const profileUser = res?.data?.data?.user;
-        if (!profileUser) return;
-        setProfileForm((prev) => ({
-          ...prev,
-          name: profileUser.name || "",
-          email: profileUser.email || "",
-          mobile: profileUser.mobile || "",
-        }));
-      })
-      .catch((err) => {
-        console.error("Profile API Error:", err);
-      });
   }, [token, user]);
 
-  const onProfileInputChange = (e) => {
-    const { name, value } = e.target;
-    setProfileMessage("");
-    setProfileError("");
-    setProfileForm((prev) => ({ ...prev, [name]: value }));
+  const statCards = useMemo(
+    () => [
+      {
+        label: "Tests Completed",
+        value: stats.tests_completed,
+        icon: CheckCircle2,
+        accent: "text-emerald-500",
+        bg: "bg-emerald-50",
+      },
+      {
+        label: "Tests in Progress",
+        value: stats.tests_in_progress,
+        icon: PlayCircle,
+        accent: "text-amber-500",
+        bg: "bg-amber-50",
+      },
+      {
+        label: "Reports Ready",
+        value: stats.reports_ready,
+        icon: FileText,
+        accent: "text-blue-500",
+        bg: "bg-blue-50",
+      },
+      {
+        label: "Counselling Sessions",
+        value: stats.counselling_sessions,
+        icon: Video,
+        accent: "text-slate-500",
+        bg: "bg-slate-100",
+      },
+    ],
+    [
+      stats.counselling_sessions,
+      stats.reports_ready,
+      stats.tests_completed,
+      stats.tests_in_progress,
+    ]
+  );
+
+  const openAssessmentPath = (path) => {
+    navigate(path);
+    window.setTimeout(() => {
+      if (window.location.pathname !== path) {
+        window.location.assign(path);
+      }
+    }, 0);
   };
 
-  const saveProfile = async (e) => {
-    e.preventDefault();
-    if (!token) return;
+  const handleOpenPackage = async (pkg) => {
+    const statusMeta = getPackageStatusMeta(pkg.status);
+    if (!statusMeta.clickable) return;
 
-    setProfileMessage("");
-    setProfileError("");
-
-    if (profileForm.newPassword && profileForm.newPassword !== profileForm.confirmPassword) {
-      setProfileError("New password and confirm password do not match.");
-      return;
-    }
-
-    const payload = {
-      name: profileForm.name,
-      email: profileForm.email,
-      mobile: profileForm.mobile,
-    };
-
-    if (profileForm.newPassword) {
-      payload.currentPassword = profileForm.currentPassword;
-      payload.newPassword = profileForm.newPassword;
-    }
+    setPackageError("");
+    setOpeningPackageId(pkg.id);
 
     try {
-      setProfileSaving(true);
-      const res = await api.patch("/v1/user/profile", payload);
-      const updatedUser = res?.data?.data?.user;
-      if (updatedUser) {
-        updateUser(updatedUser);
-        setStats((prev) => ({ ...prev, user_name: updatedUser.name || prev.user_name }));
-        setProfileForm((prev) => ({
+      const shouldResetProgress = pkg.status === "completed";
+      if (stats.selected_package_id !== pkg.id || shouldResetProgress) {
+        await api.patch("/v1/user/package/select", {
+          packageId: pkg.id,
+          resetProgress: shouldResetProgress,
+        });
+        setStats((prev) => ({
           ...prev,
-          name: updatedUser.name || "",
-          email: updatedUser.email || "",
-          mobile: updatedUser.mobile || "",
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
+          selected_package_id: pkg.id,
+          user: prev.user ? { ...prev.user, selectedPackageId: pkg.id } : prev.user,
         }));
+
+        if (user) {
+          updateUser({ ...user, selectedPackageId: pkg.id });
+        }
       }
-      setProfileMessage("Profile updated successfully.");
+
+      openAssessmentPath("/pretest/sections");
     } catch (err) {
-      setProfileError(err?.response?.data?.msg || "Failed to update profile.");
+      console.error("Failed to open assessment package", err);
+      setPackageError(
+        err?.response?.data?.msg ||
+          err?.message ||
+          "Failed to open this assessment."
+      );
     } finally {
-      setProfileSaving(false);
+      setOpeningPackageId("");
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-xl">
-        Loading dashboard...
+      <div className="flex min-h-[70vh] items-center justify-center bg-[#FAFAFA] px-4">
+        <p className="text-[#65758B]">Loading dashboard...</p>
       </div>
     );
   }
 
-  const statCards = [
-    { label: "Tests Completed", value: stats.tests_completed, icon: CheckCircle, color: "text-emerald-500", bgColor: "bg-emerald-50" },
-    { label: "Tests in Progress", value: stats.tests_in_progress, icon: PlayCircle, color: "text-amber-500", bgColor: "bg-amber-50" },
-    { label: "Reports Ready", value: stats.reports_ready, icon: FileText, color: "text-blue-500", bgColor: "bg-blue-50" },
-    { label: "Counselling Sessions", value: stats.counselling_sessions, icon: Video, color: "text-slate-600", bgColor: "bg-slate-100" },
-  ];
-
-  const careerIcons = [di3, di2, di1];
+  const displayName = stats.user?.name || user?.name || "User";
+  const initial = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="mx-auto max-w-7xl min-h-screen p-8 pb-12">
-        <h1 className="text-3xl font-bold text-[#0F1729]">
-          Welcome, {stats.user_name}!
-        </h1>
-        <p className="text-[#65758B] mt-1 text-base">
-          Track your progress and continue your career discovery journey
-        </p>
+    <div className="bg-[#FAFAFA]">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        {showAdminAccessNotice ? (
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-[24px] border border-[#F8D38B] bg-[#FFF9EE] px-5 py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-[#0F1729]">
+                Admin panel access is limited to admin accounts
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-[#65758B]">
+                You were redirected back to your dashboard because this account
+                does not have admin access.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAdminAccessNotice(false)}
+              className="shrink-0 rounded-full border border-[#E8C16A] px-3 py-1 text-xs font-semibold text-[#8C5A00] hover:bg-white"
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
 
-        {/* Stats Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-[#0F1729]">
+              Welcome, {displayName}!
+            </h1>
+            <p className="mt-2 text-base text-[#65758B]">
+              Track your progress and continue your career discovery journey.
+            </p>
+          </div>
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-3 rounded-full border border-[#D9E5EC] bg-white px-5 py-3 text-sm font-semibold text-[#0F1729] shadow-sm hover:border-[#188B8B] hover:bg-[#F6FDFC]"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8F9F8] text-[#188B8B]">
+              <UserRound className="h-4 w-4" />
+            </span>
+            Manage Profile
+          </Link>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {statCards.map((card) => {
             const Icon = card.icon;
             return (
               <div
                 key={card.label}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-start justify-between"
+                className="surface-card rounded-[26px] p-6"
               >
-                <div>
-                  <p className="text-gray-500 text-sm">{card.label}</p>
-                  <h2 className={`text-4xl font-bold mt-1 ${card.color}`}>
-                    {card.value}
-                  </h2>
-                </div>
-                <div className={`p-3 rounded-xl ${card.bgColor} ${card.color}`}>
-                  <Icon size={24} strokeWidth={2} />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-[#65758B]">{card.label}</p>
+                    <p className={`mt-4 text-5xl font-bold ${card.accent}`}>
+                      {card.value}
+                    </p>
+                  </div>
+                  <div className={`rounded-2xl p-3 ${card.bg} ${card.accent}`}>
+                    <Icon className="h-6 w-6" />
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-          {/* Available Tests */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-[#0F1729]">Available Tests</h2>
-            <p className="text-[#65758B] mt-1 text-base mb-6">
-              View and manage your aptitude tests
-            </p>
-
-            {stats.available_tests && stats.available_tests.length > 0 ? (
-              <div className="space-y-4">
-                {stats.available_tests.map((t, i) => (
-                  <div
-                    key={t.title || i}
-                    className="border border-[#E1E7EF] rounded-xl p-4 hover:bg-gray-50/50 transition"
-                  >
-                    <h3 className="font-semibold text-[#0F1729]">{t.title}</h3>
-                    <p className="text-[#65758B] text-sm mt-1">
-                      Total Duration: {t.durationMinutes ?? 180} Minutes
-                    </p>
-                    <p className="text-[#65758B] text-sm">
-                      Total Questions: {t.totalQuestions ?? 500}
-                    </p>
-                  </div>
-                ))}
+        <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(280px,0.9fr)]">
+          <section className="surface-card rounded-[30px] p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-bold text-[#0F1729]">
+                  Purchased Packages
+                </h2>
+                <p className="mt-2 text-base text-[#65758B]">
+                  Only packages you have unlocked will appear here.
+                </p>
               </div>
-            ) : (
-              <p className="text-sm text-[#65758B]">
-                No tests assigned yet. Purchase a package to unlock tests.
-              </p>
-            )}
+              <div className="hidden rounded-full bg-[#F6FDFC] px-4 py-2 text-sm font-semibold text-[#188B8B] sm:block">
+                {stats.purchased_packages.length} unlocked
+              </div>
+            </div>
+
+            <div className="mt-7 space-y-4">
+              {stats.purchased_packages.length ? (
+                stats.purchased_packages.map((pkg) => {
+                  const statusMeta = getPackageStatusMeta(pkg.status);
+                  return (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      onClick={() => handleOpenPackage(pkg)}
+                      disabled={!statusMeta.clickable || openingPackageId === pkg.id}
+                      className={`w-full rounded-[26px] border p-6 text-left shadow-sm transition ${statusMeta.cardClass} disabled:cursor-default disabled:opacity-100`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-2xl font-semibold text-[#0F1729]">
+                            {pkg.title}
+                          </h3>
+                          <div className="mt-3 flex flex-wrap gap-5 text-sm text-[#65758B]">
+                            <span>Sections: {pkg.totalSections ?? 0}</span>
+                            <span>Total Questions: {pkg.totalQuestions ?? 0}</span>
+                            <span>
+                              Total Duration: {pkg.totalDurationMinutes ?? 0} Minutes
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          className={`rounded-full px-4 py-2 text-xs font-semibold ${statusMeta.badgeClass}`}
+                        >
+                          {statusMeta.label}
+                        </span>
+                      </div>
+
+                      <div className="mt-6 flex items-center justify-between gap-4">
+                        <p className="text-sm font-semibold text-[#188B8B]">
+                          {openingPackageId === pkg.id
+                            ? "Opening..."
+                            : statusMeta.actionLabel}
+                        </p>
+                        {statusMeta.clickable ? (
+                          <ArrowRight className="h-5 w-5 text-[#188B8B]" />
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="rounded-[26px] border border-dashed border-[#C8D7E1] bg-[#FBFCFD] p-8 text-center">
+                  <h3 className="text-2xl font-semibold text-[#0F1729]">
+                    No purchased packages yet
+                  </h3>
+                  <p className="mt-3 text-[#65758B]">
+                    Choose a test package to unlock your assessment workflow.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {packageError ? (
+              <p className="mt-4 text-sm text-red-600">{packageError}</p>
+            ) : null}
 
             <Link
               to="/test"
-              className="block w-full mt-6 border-2 border-[#188B8B] text-[#188B8B] py-2.5 rounded-[14px] font-medium text-center hover:bg-teal-50 transition"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border-2 border-[#188B8B] px-5 py-3 text-sm font-semibold text-[#188B8B] hover:bg-[#F6FDFC]"
             >
               Browse More Tests
             </Link>
-          </div>
+          </section>
 
-          {/* Right Column */}
           <div className="space-y-6">
-            {/* Top Career Matches */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-[#0F1729]">Top Career Matches</h2>
-              <p className="text-sm text-[#65758B] mb-4">Based on your results</p>
+            <section className="surface-card rounded-[30px] p-7">
+              <h2 className="text-2xl font-bold text-[#0F1729]">
+                Top Career Matches
+              </h2>
+              <p className="mt-2 text-sm text-[#65758B]">
+                {stats.result_status === "pending_approval"
+                  ? "Awaiting admin approval"
+                  : "Based on your results"}
+              </p>
 
-              {stats.top_careers && stats.top_careers.length > 0 ? (
-                <div className="space-y-3">
-                  {stats.top_careers.map((c, index) => {
-                    const icon = careerIcons[index % careerIcons.length];
-                    return (
-                      <div
-                        key={c.title + index}
-                        className="bg-teal-50 p-3 rounded-xl flex items-center gap-3 border border-teal-100"
-                      >
-                        <img src={icon} alt="" className="w-10 h-10 object-contain" />
+              <div className="mt-5 space-y-3">
+                {stats.result_status === "pending_approval" ? (
+                  <div className="rounded-2xl border border-[#F8D38B] bg-[#FFF9EE] p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-2xl bg-white p-2 text-[#F59F0A]">
+                        <Clock3 className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#0F1729]">
+                          Result pending approval
+                        </h3>
+                        <p className="mt-1 text-sm leading-6 text-[#65758B]">
+                          Your assessment was submitted successfully. Your report
+                          will appear here after an admin reviews and approves it.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : stats.top_careers.length ? (
+                  stats.top_careers.slice(0, 3).map((career) => (
+                    <div
+                      key={career.title}
+                      className="rounded-2xl bg-[#EAFBFB] p-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-2xl bg-white p-2 text-[#188B8B]">
+                          <Trophy className="h-4 w-4" />
+                        </div>
                         <div>
-                          <p className="text-sm font-semibold text-[#0F1729]">{c.title}</p>
-                          <p className="text-xs text-[#65758B]">
-                            {(c.matchPercent ?? c.match ?? 0)}% match
+                          <h3 className="font-semibold text-[#0F1729]">
+                            {career.title}
+                          </h3>
+                          <p className="mt-1 text-sm text-[#65758B]">
+                            {career.matchPercent ?? 0}% match
                           </p>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-[#65758B]">
-                  Complete your tests to see personalized career matches here.
-                </p>
-              )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl bg-[#F8FAFC] p-4 text-sm text-[#65758B]">
+                    Complete your assessments to unlock personalized career
+                    matches here.
+                  </div>
+                )}
+              </div>
 
               <Link
-                to="/result"
-                className="block w-full mt-4 text-[#188B8B] font-medium text-center hover:underline"
+                to={stats.result_status === "pending_approval" ? "/test-completed" : "/result"}
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#188B8B] hover:underline"
               >
-                View All Matches →
+                {stats.result_status === "pending_approval"
+                  ? "View Submission Status"
+                  : "Open Results Hub"}
+                <ArrowRight className="h-4 w-4" />
               </Link>
-            </div>
+            </section>
 
-            {/* Book Counselling */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-[#0F1729] mb-2">Book Counselling</h2>
-              <p className="text-sm text-[#65758B] mb-2">Get expert guidance</p>
-              <p className="text-sm text-gray-500 mb-4">
-                Schedule a one-on-one session with our psychologists to discuss your results.
+            <section className="surface-card rounded-[30px] bg-[linear-gradient(180deg,#F8FEFE_0%,#FFFFFF_100%)] p-7">
+              <h2 className="text-2xl font-bold text-[#0F1729]">
+                Book Counselling
+              </h2>
+              <p className="mt-2 text-sm text-[#65758B]">
+                Get expert guidance after your assessment.
               </p>
-
+              <p className="mt-4 text-sm leading-7 text-[#65758B]">
+                Schedule a one-on-one session with our psychologists to discuss
+                your report and next steps.
+              </p>
               <Link
                 to="/bookcounselling"
-                className="flex items-center justify-center gap-2 w-full bg-amber-500 text-[#0F1729] font-semibold py-2.5 rounded-lg hover:bg-amber-600 transition"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#F59F0A] px-5 py-3 text-sm font-semibold text-[#0F1729] shadow-[0_14px_28px_rgba(245,159,10,0.18)] hover:bg-[#E89206]"
               >
-                <Calendar size={18} />
-                <span>Book Session</span>
+                <CalendarDays className="h-4 w-4" />
+                Book Session
               </Link>
-            </div>
+            </section>
 
-            {/* Need Help */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-[#0F1729] mb-4">Need Help?</h2>
-
-              <button
-                type="button"
-                className="flex items-center gap-2 w-full px-4 py-2.5 border border-gray-200 rounded-lg text-left font-medium text-[#0F1729] hover:bg-gray-50 transition mb-2"
-              >
-                <HelpCircle size={18} />
-                <span>Help Center</span>
-              </button>
-
-              <button
-                type="button"
-                className="flex items-center gap-2 w-full px-4 py-2.5 border border-gray-200 rounded-lg text-left font-medium text-[#0F1729] hover:bg-gray-50 transition"
-              >
-                <Video size={18} />
-                <span>Video Tutorials</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-[#0F1729] mb-2">My Details</h2>
-              <p className="text-sm text-[#65758B] mb-4">Update your profile information</p>
-
-              <form className="space-y-3" onSubmit={saveProfile}>
-                <input
-                  type="text"
-                  name="name"
-                  value={profileForm.name}
-                  onChange={onProfileInputChange}
-                  placeholder="Full Name"
-                  className="w-full border border-[#E1E7EF] rounded-lg px-3 py-2 text-sm"
-                />
-                <input
-                  type="email"
-                  name="email"
-                  value={profileForm.email}
-                  onChange={onProfileInputChange}
-                  placeholder="Email"
-                  className="w-full border border-[#E1E7EF] rounded-lg px-3 py-2 text-sm"
-                />
-                <input
-                  type="text"
-                  name="mobile"
-                  value={profileForm.mobile}
-                  onChange={onProfileInputChange}
-                  placeholder="Mobile Number"
-                  className="w-full border border-[#E1E7EF] rounded-lg px-3 py-2 text-sm"
-                />
-                <input
-                  type="password"
-                  name="currentPassword"
-                  value={profileForm.currentPassword}
-                  onChange={onProfileInputChange}
-                  placeholder="Current Password (only if changing password)"
-                  className="w-full border border-[#E1E7EF] rounded-lg px-3 py-2 text-sm"
-                />
-                <input
-                  type="password"
-                  name="newPassword"
-                  value={profileForm.newPassword}
-                  onChange={onProfileInputChange}
-                  placeholder="New Password"
-                  className="w-full border border-[#E1E7EF] rounded-lg px-3 py-2 text-sm"
-                />
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={profileForm.confirmPassword}
-                  onChange={onProfileInputChange}
-                  placeholder="Confirm New Password"
-                  className="w-full border border-[#E1E7EF] rounded-lg px-3 py-2 text-sm"
-                />
-
-                {profileError ? <p className="text-xs text-red-600">{profileError}</p> : null}
-                {profileMessage ? <p className="text-xs text-green-700">{profileMessage}</p> : null}
-
-                <button
-                  type="submit"
-                  disabled={profileSaving}
-                  className="w-full bg-[#188B8B] text-white py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60"
+            <section className="surface-card rounded-[30px] p-7">
+              <h2 className="text-2xl font-bold text-[#0F1729]">Need Help?</h2>
+              <div className="mt-5 space-y-3">
+                <Link
+                  to="/bookcounselling"
+                  className="flex items-center gap-3 rounded-2xl border border-[#D9E5EC] px-4 py-3 text-sm font-semibold text-[#0F1729] hover:bg-[#F8FAFC]"
                 >
-                  {profileSaving ? "Saving..." : "Save Details"}
-                </button>
-              </form>
-            </div>
+                  <HelpCircle className="h-4 w-4 text-[#188B8B]" />
+                  Help Center
+                </Link>
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-3 rounded-2xl border border-[#D9E5EC] px-4 py-3 text-sm font-semibold text-[#0F1729] hover:bg-[#F8FAFC]"
+                >
+                  <UserRound className="h-4 w-4 text-[#188B8B]" />
+                  My Profile
+                </Link>
+              </div>
+            </section>
+
+            <section className="surface-card rounded-[30px] p-7">
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#188B8B] text-2xl font-bold text-white">
+                  {initial}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-[#0F1729]">
+                    {displayName}
+                  </h2>
+                  <p className="text-sm text-[#65758B]">
+                    {stats.user?.email || user?.email || "No email available"}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/profile"
+                className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#188B8B] hover:underline"
+              >
+                View profile
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </section>
           </div>
         </div>
       </div>
+    </div>
   );
-};
-
-export default Dashboard;
+}

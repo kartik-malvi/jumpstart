@@ -1,6 +1,192 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
+const testResultSchema = new mongoose.Schema(
+  {
+    testName: { type: String, default: "" },
+    sectionName: { type: String, default: "" },
+    sectionId: { type: Number, default: null },
+    completedAt: { type: Date, default: null },
+    score: { type: Number, default: null },
+    maxScore: { type: Number, default: null },
+    reportUrl: { type: String, default: "" },
+    interpretation: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const factorResultSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: "" },
+    key: { type: String, default: "" },
+    label: { type: String, default: "" },
+    score: { type: Number, default: null },
+    rawScore: { type: Number, default: null },
+    maxScore: { type: Number, default: null },
+    average: { type: Number, default: null },
+    percentage: { type: Number, default: null },
+    band: { type: String, default: "" },
+    status: { type: String, default: "" },
+    description: { type: String, default: "" },
+    interpretation: { type: String, default: "" },
+    careerImplication: { type: String, default: "" },
+    answerType: { type: String, default: "" },
+    scoreType: { type: String, default: "" },
+    questionNumbers: { type: [Number], default: [] },
+    questionRangeLabel: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const subsectionSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: "" },
+    key: { type: String, default: "" },
+    label: { type: String, default: "" },
+    score: { type: Number, default: null },
+    rawScore: { type: Number, default: null },
+    maxScore: { type: Number, default: null },
+    average: { type: Number, default: null },
+    percentage: { type: Number, default: null },
+    band: { type: String, default: "" },
+    status: { type: String, default: "" },
+    description: { type: String, default: "" },
+    interpretation: { type: String, default: "" },
+    careerImplication: { type: String, default: "" },
+    answerType: { type: String, default: "" },
+    scoreType: { type: String, default: "" },
+    questionNumbers: { type: [Number], default: [] },
+    questionRangeLabel: { type: String, default: "" },
+    factorResults: { type: [factorResultSchema], default: [] },
+  },
+  { _id: false }
+);
+
+const sectionBreakdownSchema = new mongoose.Schema(
+  {
+    sectionId: { type: Number, default: null },
+    title: { type: String, default: "" },
+    score: { type: Number, default: null },
+    maxScore: { type: Number, default: null },
+    average: { type: Number, default: null },
+    percentage: { type: Number, default: null },
+    answeredCount: { type: Number, default: null },
+    totalQuestions: { type: Number, default: null },
+    status: { type: String, default: "" },
+    interpretation: { type: String, default: "" },
+    careerImplication: { type: String, default: "" },
+    scoringType: { type: String, default: "" },
+    answerType: { type: String, default: "" },
+    scoreType: { type: String, default: "" },
+    questionNumbers: { type: [Number], default: [] },
+    questionRangeLabel: { type: String, default: "" },
+    subsections: { type: [subsectionSchema], default: [] },
+  },
+  { _id: false }
+);
+
+const strengthSchema = new mongoose.Schema(
+  {
+    name: { type: String, default: "" },
+    value: { type: Number, default: null },
+    desc: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const careerRecommendationSchema = new mongoose.Schema(
+  {
+    title: { type: String, default: "" },
+    matchPercent: { type: Number, default: null },
+    description: { type: String, default: "" },
+    skills: { type: [String], default: [] },
+    salaryRange: { type: String, default: "" },
+    link: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const personalityTraitSchema = new mongoose.Schema(
+  {
+    name: { type: String, default: "" },
+    value: { type: Number, default: null },
+  },
+  { _id: false }
+);
+
+const personalityTypeSchema = new mongoose.Schema(
+  {
+    code: { type: String, default: "" },
+    title: { type: String, default: "" },
+    description: { type: String, default: "" },
+    traits: { type: [personalityTraitSchema], default: [] },
+  },
+  { _id: false }
+);
+
+const reviewSummarySchema = new mongoose.Schema(
+  {
+    statusLabel: { type: String, default: "" },
+    strongestSignals: { type: [String], default: [] },
+    topCareerTitles: { type: [String], default: [] },
+    observations: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
+const resultMetadataSchema = new mongoose.Schema(
+  {
+    algorithmKey: { type: String, default: "" },
+    overallMaxScore: { type: Number, default: null },
+    packageId: { type: String, default: "" },
+    scoringGuideSources: { type: [String], default: [] },
+    ambiguityNotes: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
+const resultProfileSchema = new mongoose.Schema(
+  {
+    overallScore: { type: Number, default: null },
+    overallPercentile: { type: String, default: "" },
+    completedTestsCount: { type: Number, default: 0 },
+    totalTestsCount: { type: Number, default: 0 },
+    careerPathwaysCount: { type: Number, default: 0 },
+    testResults: { type: [testResultSchema], default: [] },
+    sectionBreakdown: { type: [sectionBreakdownSchema], default: [] },
+    strengths: { type: [strengthSchema], default: [] },
+    careerRecommendations: { type: [careerRecommendationSchema], default: [] },
+    personalityType: { type: personalityTypeSchema, default: () => ({}) },
+    reviewSummary: { type: reviewSummarySchema, default: () => ({}) },
+    metadata: { type: resultMetadataSchema, default: () => ({}) },
+  },
+  { _id: false }
+);
+
+const resultPublicationSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ["not_submitted", "pending_approval", "approved"],
+      default: "not_submitted",
+    },
+    submittedAt: { type: Date, default: null },
+    approvedAt: { type: Date, default: null },
+    approvedByName: { type: String, trim: true, default: "" },
+  },
+  { _id: false }
+);
+
+const assessmentReportSchema = new mongoose.Schema({
+  packageId: { type: String, default: "" },
+  packageTitle: { type: String, default: "" },
+  attemptNumber: { type: Number, default: 1 },
+  profile: { type: resultProfileSchema, default: () => ({}) },
+  publication: { type: resultPublicationSchema, default: () => ({}) },
+  createdAt: { type: Date, default: null },
+  updatedAt: { type: Date, default: null },
+});
+
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -13,6 +199,11 @@ const userSchema = new mongoose.Schema(
     },
     password: { type: String, minlength: 6, default: null },
     mobile: { type: String, trim: true, default: "" },
+    city: { type: String, trim: true, default: "" },
+    dateOfBirth: { type: String, trim: true, default: "" },
+    schoolName: { type: String, trim: true, default: "" },
+    schoolLocation: { type: String, trim: true, default: "" },
+    residentialAddress: { type: String, trim: true, default: "" },
     googleId: { type: String, sparse: true, default: null },
     avatar: { type: String, default: null },
     subscription: {
@@ -54,46 +245,16 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // Results page: per-user career profile (populated after tests)
-    resultProfile: {
-      overallScore: { type: Number, default: null },
-      overallPercentile: { type: String, default: "" },
-      completedTestsCount: { type: Number, default: 0 },
-      totalTestsCount: { type: Number, default: 0 },
-      careerPathwaysCount: { type: Number, default: 0 },
-      testResults: [
-        {
-          testName: String,
-          completedAt: Date,
-          score: Number,
-          maxScore: Number,
-          reportUrl: String,
-        },
-      ],
-      strengths: [
-        {
-          name: String,
-          value: Number,
-          desc: String,
-        },
-      ],
-      careerRecommendations: [
-        {
-          title: String,
-          matchPercent: Number,
-          description: String,
-          skills: [String],
-          salaryRange: String,
-          link: String,
-        },
-      ],
-      personalityType: {
-        code: String,
-        title: String,
-        description: String,
-        traits: [{ name: String, value: Number }],
-      },
+    // Current/latest result snapshot kept for backward compatibility.
+    resultProfile: { type: resultProfileSchema, default: () => ({}) },
+
+    resultPublication: {
+      type: resultPublicationSchema,
+      default: () => ({ status: "not_submitted" }),
     },
+
+    // Scalable result history for multiple purchased tests and repeated attempts.
+    assessmentReports: { type: [assessmentReportSchema], default: [] },
 
     // Livetest progress (section, question index, answers, time left)
     testProgress: {
@@ -125,6 +286,11 @@ userSchema.methods.toAuthJSON = function () {
     name: this.name,
     email: this.email,
     mobile: this.mobile || "",
+    city: this.city || "",
+    dateOfBirth: this.dateOfBirth || "",
+    schoolName: this.schoolName || "",
+    schoolLocation: this.schoolLocation || "",
+    residentialAddress: this.residentialAddress || "",
     subscription: this.subscription,
     role: this.role,
     isSuspended: this.isSuspended || false,

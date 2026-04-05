@@ -8,15 +8,13 @@ import {
   CreditCard,
   BarChart3,
   Settings,
-  CircleDot,
 } from "lucide-react";
 
 const AdminSidebar = ({ isOpen }) => {
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: "Dashboard", path: "/admin/dashboard" },
-    { icon: <FileText size={20} />, label: "Records", path: "/admin/testsubmissions" },
-    { icon: <CheckSquare size={20} />, label: "Tests", path: "/admin/testsubmissions" },
-    { icon: <CircleDot size={20} />, label: "Status", path: "/admin/publishedresults" },
+    { icon: <FileText size={20} />, label: "Test Submissions", path: "/admin/testsubmissions" },
+    { icon: <CheckSquare size={20} />, label: "Published Results", path: "/admin/publishedresults" },
     { icon: <Users size={20} />, label: "Users", path: "/admin/usermanagement" },
     { icon: <CreditCard size={20} />, label: "Payments", path: "/admin/payments" },
     { icon: <BarChart3 size={20} />, label: "Analytics", path: "/admin/analytics" },

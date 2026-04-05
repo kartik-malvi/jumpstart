@@ -2,9 +2,12 @@ import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 
-const googleClient = process.env.GOOGLE_CLIENT_ID
-  ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
-  : null;
+const googleClientIds = (process.env.GOOGLE_CLIENT_ID || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+const googleClient = googleClientIds.length > 0 ? new OAuth2Client() : null;
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -148,7 +151,7 @@ export const socialLogin = async (req, res) => {
 
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: googleClientIds,
     });
     const payload = ticket.getPayload();
     const googleId = payload.sub;
@@ -205,6 +208,14 @@ export const socialLogin = async (req, res) => {
     });
   } catch (err) {
     console.error("Social login error:", err);
+
+    if (err.message?.includes("Wrong recipient")) {
+      return res.status(401).json({
+        success: false,
+        msg: "Google client ID mismatch. Make sure the frontend and backend use the same Google client ID and that your current origin is allowed in Google Cloud Console.",
+      });
+    }
+
     res.status(500).json({
       success: false,
       msg: err.message || "Google login failed",

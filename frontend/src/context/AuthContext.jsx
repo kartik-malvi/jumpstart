@@ -1,9 +1,7 @@
 import { createContext, useState, useEffect } from "react";
+import { apiUnavailableMessage, apiV1BaseUrl } from "../config/env";
 
 export const AuthContext = createContext();
-
-const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const basePath = `${apiBase}/v1`;
 
 // ----------------------------
 // SAFE GET FROM LOCAL STORAGE
@@ -48,11 +46,16 @@ export const AuthProvider = ({ children }) => {
   // 1️⃣ LOGIN WITH EMAIL + PASSWORD
   // ------------------------------------
   const login = async ({ email, password }) => {
-    const res = await fetch(`${basePath}/user/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    let res;
+    try {
+      res = await fetch(`${apiV1BaseUrl}/user/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch (error) {
+      throw new Error(apiUnavailableMessage);
+    }
 
     const data = await res.json();
     console.log("LOGIN RESPONSE:", data);
@@ -79,14 +82,19 @@ export const AuthProvider = ({ children }) => {
   // 2️⃣ LOGIN WITH GOOGLE (SOCIAL LOGIN)
   // ------------------------------------
   const loginWithGoogle = async (google_id_token) => {
-    const res = await fetch(`${basePath}/user/auth/social-login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: "google",
-        token: google_id_token,
-      }),
-    });
+    let res;
+    try {
+      res = await fetch(`${apiV1BaseUrl}/user/auth/social-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "google",
+          token: google_id_token,
+        }),
+      });
+    } catch (error) {
+      throw new Error(apiUnavailableMessage);
+    }
 
     const data = await res.json();
     console.log("GOOGLE LOGIN RESPONSE:", data);

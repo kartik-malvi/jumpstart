@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import connectDB from "./config/db.js";
+import { ensureRequiredEnv } from "./config/env.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import configRoutes from "./routes/configRoutes.js";
@@ -9,7 +10,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 
 const PORT = process.env.PORT || 5000;
 
-connectDB();
+ensureRequiredEnv();
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -50,6 +51,27 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, msg: "Server error" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+const startServer = async () => {
+  await connectDB();
+
+  const server = app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(
+        `Port ${PORT} is already in use. Stop the existing process or change PORT in backend/.env.`
+      );
+      process.exit(1);
+    }
+
+    console.error("Server startup error:", error);
+    process.exit(1);
+  });
+};
+
+startServer().catch((error) => {
+  console.error("Failed to start server:", error.message);
+  process.exit(1);
 });

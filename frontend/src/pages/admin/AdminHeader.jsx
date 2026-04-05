@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Menu, 
   Search, 
@@ -13,13 +14,45 @@ import {
   LogOut, 
   ChevronDown 
 } from "lucide-react";
+import { AuthContext } from "../../context/AuthContext";
 
 const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
+  const navigate = useNavigate();
+  const { user, logout } = useContext(AuthContext);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
+
+  const adminName = user?.name || "Admin User";
+  const adminEmail = user?.email || "admin@jumpstart.local";
+  const adminInitials = useMemo(() => {
+    const words = String(adminName || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (!words.length) return "AD";
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return `${words[0][0] || ""}${words[1][0] || ""}`.toUpperCase();
+  }, [adminName]);
+
+  const closeAllDropdowns = () => {
+    setShowNotifications(false);
+    setShowProfileDropdown(false);
+  };
+
+  const handleNavigate = (path) => {
+    closeAllDropdowns();
+    navigate(path);
+  };
+
+  const handleLogout = () => {
+    closeAllDropdowns();
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -131,10 +164,10 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
             }}
           >
             <div className="w-9 h-9 bg-[#14b8a6] text-white rounded-full flex items-center justify-center font-medium text-sm border-2 border-[#14b8a61a] group-hover:border-[#14b8a644] transition-all">
-              DS
+              {adminInitials}
             </div>
             <div className="hidden md:flex flex-col items-start leading-none gap-1">
-              <span className="text-xs font-bold text-gray-900">Dr. Sarah</span>
+              <span className="text-xs font-bold text-gray-900">{adminName}</span>
               <span className="text-[10px] text-gray-400 font-medium">Administrator</span>
             </div>
             <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${showProfileDropdown ? 'rotate-180' : ''}`} />
@@ -144,22 +177,34 @@ const AdminHeader = ({ isSidebarOpen, setIsSidebarOpen }) => {
             <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200">
               <div className="p-4 pb-0 border-b border-gray-50">
                 <p className="!text-[12px] !font-bold text-gray-400 uppercase tracking-widest">Account</p>
-                <p className="!text-[12px] !font-bold text-gray-900 truncate">sarah.doctor@health.com</p>
+                <p className="!text-[12px] !font-bold text-gray-900 truncate">{adminEmail}</p>
               </div>
               
               <div className="p-2">
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate("/profile/edit")}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
                   <User size={18} className="text-gray-400" />
                   Edit Profile Details
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate("/admin/settings")}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
                   <Settings size={18} className="text-gray-400" />
                   Account Settings
                 </button>
               </div>
 
               <div className="pt-0 p-2 border-t border-gray-50">
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors"
+                >
                   <LogOut size={18} />
                   Logout
                 </button>

@@ -5,14 +5,12 @@ import { Outlet } from 'react-router-dom'
 
 const MainLayout = () => {
   return (
-    <div>
-
-        <Header/>
-
-            <Outlet/>
-
-        <Footer/>
-
+    <div className="flex min-h-screen flex-col bg-white">
+      <Header />
+      <main className="flex-1">
+        <Outlet />
+      </main>
+      <Footer />
     </div>
   )
 }

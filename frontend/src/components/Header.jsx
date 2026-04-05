@@ -1,195 +1,247 @@
-"use client";
-
-import { useState, useContext } from "react";
-
-import {
-  Dialog,
-  DialogPanel,
-  Disclosure,
-  DisclosureButton,
-  PopoverGroup,
-} from "@headlessui/react";
-import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-
-import logo from "../assets/logo.png";
-import { Link } from "react-router-dom";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { LogOut, Menu, UserRound, X } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
 
-export default function Header() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, logout } = useContext(AuthContext);
+const defaultNavItems = [
+  { label: "Home", to: "/" },
+  { label: "Tests", to: "/test" },
+  { label: "Dashboard", to: "/dashboard" },
+  { label: "Results", to: "/result" },
+];
 
-  const isLoggedIn = !!user;
+const getLinkClassName = ({ isActive }) =>
+  `text-sm font-semibold ${
+    isActive ? "text-[#188B8B]" : "text-[#0F1729] hover:text-[#188B8B]"
+  }`;
+
+const getMobileLinkClassName = ({ isActive }) =>
+  `rounded-2xl px-4 py-3 text-[15px] font-semibold transition-colors ${
+    isActive
+      ? "bg-[#EAFBFB] text-[#188B8B]"
+      : "text-[#0F1729] hover:bg-[#F8FAFC] hover:text-[#188B8B]"
+  }`;
+
+export default function Header() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useContext(AuthContext);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const isAdmin = user?.role === "admin";
+
+  const firstName = useMemo(() => {
+    const name = String(user?.name || "").trim();
+    return name ? name.split(/\s+/)[0] : "Profile";
+  }, [user?.name]);
+
+  const navItems = useMemo(() => {
+    if (!isAdmin) return defaultNavItems;
+
+    return defaultNavItems.map((item) => {
+      if (item.label === "Dashboard") {
+        return { ...item, to: "/admin/dashboard" };
+      }
+
+      if (item.label === "Results") {
+        return { ...item, to: "/admin/publishedresults" };
+      }
+
+      return item;
+    });
+  }, [isAdmin]);
+
+  const handleLogout = () => {
+    setMobileOpen(false);
+    logout();
+    navigate("/", { replace: true });
+  };
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) {
+      document.body.style.overflow = "";
+      return undefined;
+    }
+
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
+
+  const desktopNavLinks = (
+    <>
+      {navItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          onClick={() => setMobileOpen(false)}
+          className={getLinkClassName}
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </>
+  );
+
+  const mobileNavLinks = (
+    <>
+      {navItems.map((item) => (
+        <NavLink
+          key={`mobile-${item.to}`}
+          to={item.to}
+          onClick={() => setMobileOpen(false)}
+          className={getMobileLinkClassName}
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </>
+  );
 
   return (
-    <header className="bg-white">
-      <nav
-        aria-label="Global"
-        className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8"
-      >
-        {/* LEFT SIDE: LOGO + MENU */}
-        <div className="flex items-center gap-x-12">
-          {/* LOGO */}
-          <Link to="/" className="-m-1.5 p-1.5">
-            <span className="sr-only">Your Company</span>
-            <img alt="" src={logo} className="h-8 w-auto" />
-          </Link>
+    <>
+      <header className="sticky top-0 z-40 border-b border-[#E8EDF3] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-10">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#188B8B] text-lg font-bold text-white shadow-[0_10px_24px_rgba(24,139,139,0.22)]">
+                J
+              </div>
+              <span className="text-2xl font-bold text-[#0F1729]">Jumpstart</span>
+            </Link>
 
-          {/* MENU */}
-          <PopoverGroup className="hidden lg:flex lg:gap-x-10">
-            <Link to="/" className="text-sm font-semibold text-gray-900">
-              Home
-            </Link>
-            <Link to="/test" className="text-sm font-semibold text-gray-900">
-              Tests
-            </Link>
-            <Link to="/dashboard" className="text-sm font-semibold text-gray-900">
-              Dashboard
-            </Link>
-            <a href="/result" className="text-sm font-semibold text-gray-900">
-              Results
-            </a>
-          </PopoverGroup>
-        </div>
+            <nav className="hidden items-center gap-8 lg:flex">{desktopNavLinks}</nav>
+          </div>
 
-        {/* MOBILE MENU BUTTON */}
-        <div className="flex lg:hidden">
+          <div className="hidden items-center gap-3 lg:flex">
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#D9E5EC] px-4 py-2 text-sm font-semibold text-[#0F1729] hover:border-[#188B8B] hover:bg-[#F0FBFB]"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8F9F8] text-[#188B8B]">
+                    <UserRound className="h-4 w-4" />
+                  </span>
+                  {firstName}
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#F59F0A] px-5 py-3 text-sm font-semibold text-[#0F1729] shadow-[0_12px_24px_rgba(245,159,10,0.22)] hover:-translate-y-0.5 hover:bg-[#E89206]"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#0F1729] hover:text-[#188B8B]"
+                >
+                  <UserRound className="h-4 w-4" />
+                  Sign In
+                </Link>
+                <Link to="/signup" className="primary-btn">
+                  Get Started
+                </Link>
+              </>
+            )}
+          </div>
+
           <button
             type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
+            onClick={() => setMobileOpen(true)}
+            className="inline-flex items-center justify-center rounded-2xl border border-[#D9E5EC] p-2 text-[#0F1729] lg:hidden"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileOpen}
           >
-            <span className="sr-only">Open main menu</span>
-            <Bars3Icon aria-hidden="true" className="size-6" />
+            <Menu className="h-5 w-5" />
           </button>
         </div>
+      </header>
 
-        {/* RIGHT SIDE (Desktop) */}
-        <div className="hidden lg:flex lg:items-center lg:gap-x-6">
-          {isLoggedIn ? (
-            <>
-              <span className="text-sm text-gray-700">
-                Hi, <strong>{user?.name}</strong>
-              </span>
-
-              <button
-                onClick={logout}
-                className="rounded-full bg-orange-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/login"
-                className="flex items-center gap-2 text-sm font-semibold text-gray-900"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="h-5 w-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a8.25 8.25 0 0 1 15 0"
-                  />
-                </svg>
-                Sign In
-              </Link>
-
-              <a
-                href="/signup"
-                className="primary-btn rounded-full bg-orange-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition"
-              >
-                Get Started
-              </a>
-            </>
-          )}
-        </div>
-      </nav>
-
-      {/* MOBILE MENU */}
-      <Dialog
-        open={mobileMenuOpen}
-        onClose={setMobileMenuOpen}
-        className="lg:hidden"
+      <div
+        className={`fixed inset-0 z-50 lg:hidden transition-opacity duration-300 ${
+          mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
       >
-        <div className="fixed inset-0 z-50" />
-        <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full bg-white p-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+        <div
+          className="absolute inset-0 bg-[#0F1729]/40 backdrop-blur-[1px]"
+          onClick={() => setMobileOpen(false)}
+        />
+        <div
+          className={`ml-auto flex h-full w-full max-w-[22rem] flex-col bg-white px-5 py-5 shadow-2xl transition-transform duration-300 ease-out ${
+            mobileOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+          onClick={(event) => event.stopPropagation()}
+        >
           <div className="flex items-center justify-between">
-            <a href="#" className="-m-1.5 p-1.5">
-              <span className="sr-only">Your Company</span>
-              <img alt="" src={logo} className="h-8 w-auto" />
-            </a>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#188B8B] text-lg font-bold text-white">
+                J
+              </div>
+              <span className="text-2xl font-bold text-[#0F1729]">Jumpstart</span>
+            </div>
             <button
               type="button"
-              onClick={() => setMobileMenuOpen(false)}
-              className="-m-2.5 rounded-md p-2.5 text-gray-700"
+              onClick={() => setMobileOpen(false)}
+              className="rounded-2xl border border-[#D9E5EC] p-2 text-[#0F1729]"
+              aria-label="Close navigation menu"
             >
-              <span className="sr-only">Close menu</span>
-              <XMarkIcon aria-hidden="true" className="size-6" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* MOBILE MENU LINKS */}
-          <div className="mt-6 flow-root">
-            <div className="-my-6 divide-y divide-gray-500/10">
-              <div className="space-y-2 py-6">
-                <Disclosure as="div" className="-mx-3">
-                  <DisclosureButton className="group flex w-full items-center justify-between rounded-lg px-3 py-2 text-base font-semibold text-gray-900 hover:bg-gray-50">
-                    Home
-                  </DisclosureButton>
-                </Disclosure>
+          <nav className="mt-8 flex flex-col gap-2">{mobileNavLinks}</nav>
 
-                <a
-                  href="#"
-                  className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold text-gray-900 hover:bg-gray-50"
+          <div className="mt-auto flex flex-col gap-3 pt-8">
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileOpen(false)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#D9E5EC] px-4 py-3 text-sm font-semibold text-[#0F1729]"
                 >
-                  Tests
-                </a>
-
-                <a
-                  href="/dashboard"
-                  className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold text-gray-900 hover:bg-gray-50"
+                  <UserRound className="h-4 w-4" />
+                  My Profile
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#F59F0A] px-4 py-3 text-sm font-semibold text-[#0F1729]"
                 >
-                  Dashboard
-                </a>
-
-                <a
-                  href="#"
-                  className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold text-gray-900 hover:bg-gray-50"
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#D9E5EC] px-4 py-3 text-sm font-semibold text-[#0F1729]"
                 >
-                  Results
-                </a>
-              </div>
-
-              <div className="py-6">
-                {isLoggedIn ? (
-                  <button
-                    onClick={logout}
-                    className="-mx-3 block rounded-full px-3 py-2.5 text-base font-semibold 
-                               bg-orange-500 text-white text-center hover:bg-orange-600 transition"
-                  >
-                    Logout
-                  </button>
-                ) : (
-                  <Link
-                    to="/login"
-                    className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold text-gray-900 hover:bg-gray-50"
-                  >
-                    Log in
-                  </Link>
-                )}
-              </div>
-            </div>
+                  <UserRound className="h-4 w-4" />
+                  Sign In
+                </Link>
+                <Link
+                  to="/signup"
+                  onClick={() => setMobileOpen(false)}
+                  className="primary-btn"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
-        </DialogPanel>
-      </Dialog>
-    </header>
+        </div>
+      </div>
+    </>
   );
 }

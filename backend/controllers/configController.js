@@ -78,6 +78,14 @@ const mapRowsToQuestions = (rows) => {
             ? ["1", "true", "yes", "y"].includes(String(cells[idx.reverseScored] || "").toLowerCase())
             : false,
         weight: idx.weight >= 0 ? Number(cells[idx.weight] || 1) : 1,
+        subscale:
+          headers.findIndex((h) => h === "subscale") >= 0
+            ? String(cells[headers.findIndex((h) => h === "subscale")] || "").trim()
+            : "",
+        notes:
+          headers.findIndex((h) => h === "notes") >= 0
+            ? String(cells[headers.findIndex((h) => h === "notes")] || "").trim()
+            : "",
       };
     })
     .filter((q) => q.text);
@@ -104,6 +112,14 @@ const toPublicSection = (s) => ({
   scoringType: s.scoringType,
   totalQuestions: Array.isArray(s.questions) ? s.questions.length : 0,
 });
+
+const getQuestionCount = (pkg) =>
+  (pkg.sections || [])
+    .filter((section) => section.enabled !== false)
+    .reduce(
+      (sum, section) => sum + ((section.questions || []).length || 0),
+      0
+    );
 
 const normalizePackage = (p, sortOrder = 1) => ({
   id: String(p.id || `pkg-${Date.now()}`),
@@ -136,7 +152,9 @@ const findPackage = (cfg, packageId) => (cfg.packages || []).find((p) => p.id ==
 export const getPublicConfig = async (req, res) => {
   try {
     const cfg = await getCfg();
-    const packages = (cfg.packages || []).filter((p) => p.active !== false).sort((a, b) => a.sortOrder - b.sortOrder);
+    const packages = (cfg.packages || [])
+      .filter((p) => p.active !== false && getQuestionCount(p) > 0)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
     return res.status(200).json({ success: true, data: { packages: packages.map(toPublicPackage) } });
   } catch (err) {
     return res.status(500).json({ success: false, msg: err.message || "Failed to load config" });

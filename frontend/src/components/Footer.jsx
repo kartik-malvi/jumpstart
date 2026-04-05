@@ -1,83 +1,91 @@
-import fi1 from '../assets/fi1.png'
-import fi2 from '../assets/fi2.png'
-import fi3 from '../assets/fi3.png'
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
+import { Mail, MapPin, Phone } from "lucide-react";
+
+const quickLinks = [
+  { label: "Home", to: "/" },
+  { label: "Test Packages", to: "/test" },
+  { label: "Dashboard", to: "/dashboard" },
+  { label: "Results", to: "/result" },
+];
+
+const supportLinks = [
+  { label: "Help Center", to: "/bookcounselling" },
+  { label: "Privacy Policy", to: "/" },
+  { label: "Terms of Service", to: "/" },
+  { label: "FAQs", to: "/" },
+];
+
 export default function Footer() {
   return (
-    <footer className="bg-[#0B0C0E] text-white pt-14 pb-6">
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-10">
-
-        {/* Logo + Description */}
+    <footer className="bg-[#060708] text-white">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.15fr_0.85fr_0.85fr_1fr] lg:px-8">
         <div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-10 w-10 rounded-lg bg-[#0B908E] flex items-center justify-center text-white text-xl font-bold">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#188B8B] text-lg font-bold text-white">
               J
             </div>
-            <h3 className="text-lg font-semibold">Jumpstart</h3>
+            <h3 className="text-2xl font-bold">Jumpstart</h3>
           </div>
-          <p className="!text-white text-sm leading-relaxed !text-[14px] !leading-[20px]">
-            Psychologist-designed career aptitude tests to help you discover your ideal career path.
+          <p className="mt-4 max-w-xs text-sm leading-6 text-white/70">
+            Psychologist-designed career aptitude tests to help you discover
+            your ideal career path.
           </p>
         </div>
 
-        {/* Quick Links */}
         <div>
-          <h4 className="text-sm font-semibold mb-4">Quick Links</h4>
-          <ul className="space-y-2 text-white text-sm">
-            <li><Link to="/">Home</Link></li>
-            <li><Link to="/test">Test Packages</Link></li>
-            <li><Link to="/dashboard">Dashboard</Link></li>
-            <li><Link to="/result">Results</Link></li>
+          <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+            Quick Links
+          </h4>
+          <ul className="mt-5 space-y-3 text-sm text-white/80">
+            {quickLinks.map((link) => (
+              <li key={link.to}>
+                <Link to={link.to} className="hover:text-white">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 
-        {/* Support */}
         <div>
-          <h4 className="text-sm font-semibold mb-4">Support</h4>
-          <ul className="space-y-2 text-white text-sm">
-            <li>Help Center</li>
-            <li>Privacy Policy</li>
-            <li>Terms of Service</li>
-            <li>FAQs</li>
+          <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+            Support
+          </h4>
+          <ul className="mt-5 space-y-3 text-sm text-white/80">
+            {supportLinks.map((link) => (
+              <li key={link.label}>
+                <Link to={link.to} className="hover:text-white">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 
-        {/* Contact Us */}
         <div>
-          <h4 className="text-sm font-semibold mb-4">Contact Us</h4>
-          <ul className="space-y-3 text-white text-sm">
-            <li className="flex items-end gap-2">
-              <span className="text-[#0B908E] text-lg">
-                <img src={fi1} className='w-[16px]'/>
-              </span>
+          <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+            Contact Us
+          </h4>
+          <ul className="mt-5 space-y-4 text-sm text-white/80">
+            <li className="flex items-center gap-3">
+              <Mail className="h-4 w-4 text-[#34D3CB]" />
               support@jumpstart.com
             </li>
-            <li className="flex items-center gap-2">
-              <span className="text-[#0B908E] text-lg">
-                <img src={fi2} className='w-[16px]'/>
-              </span>
+            <li className="flex items-center gap-3">
+              <Phone className="h-4 w-4 text-[#34D3CB]" />
               +1 (555) 123-4567
             </li>
-            <li className="flex items-center gap-2">
-              <span className="text-[#0B908E] text-lg">
-                <img src={fi3} className='w-[16px]'/>
-              </span>
+            <li className="flex items-start gap-3">
+              <MapPin className="mt-0.5 h-4 w-4 text-[#34D3CB]" />
               123 Education St, Learning City
             </li>
           </ul>
         </div>
-
       </div>
 
-      {/* Divider */}
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="border-t border-gray-700 mt-10 pt-4"></div>
+      <div className="mx-auto max-w-7xl border-t border-white/10 px-4 py-6 text-center text-sm text-white/55 sm:px-6 lg:px-8">
+        (c) 2026. Jumpstart Education. All Rights Reserved.
       </div>
-
-      {/* Bottom Text */}
-      <p className="text-center !text-white text-xs mt-4 !text-[14px]">
-        © 2024 Jumpstart. All rights reserved. Built by psychologists, for students.
-      </p>
     </footer>
   );
 }

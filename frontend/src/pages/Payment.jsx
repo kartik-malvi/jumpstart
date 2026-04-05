@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
 import upiIcon from "../assets/upi.svg";
@@ -16,7 +15,6 @@ const Payment = () => {
   const navigate = useNavigate();
   const [method, setMethod] = useState("upi");
   const [agree, setAgree] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const plan = location.state?.plan;
 
@@ -34,17 +32,24 @@ const Payment = () => {
   const handleCompletePayment = () => {
     if (!plan?.id) return;
     api
-      .patch("/v1/user/package/select", { packageId: plan.id })
-      .then(() => setShowSuccessPopup(true))
+      .post("/v1/user/package/purchase", { packageId: plan.id })
+      .then(() =>
+        navigate("/payment-confirmation", {
+          replace: true,
+          state: {
+            plan,
+            subtotal,
+            gstAmount,
+            total,
+            method,
+            paidAt: new Date().toISOString(),
+          },
+        })
+      )
       .catch((err) => {
-        console.error("Select package failed", err);
+        console.error("Purchase package failed", err);
         alert(err?.response?.data?.msg || "Failed to activate package");
       });
-  };
-
-  const handleSuccessOk = () => {
-    setShowSuccessPopup(false);
-    navigate("/Pretest", { replace: true });
   };
 
   if (!plan || !plan.id) {
@@ -281,16 +286,18 @@ const Payment = () => {
               type="button"
               disabled={!agree}
               onClick={handleCompletePayment}
-              className={`w-full h-[48px] rounded-xl font-semibold transition flex items-center justify-center gap-1 ${
+              className={`group w-full h-[48px] rounded-xl font-semibold flex items-center justify-center gap-1 transition-all duration-200 ${
                 agree
-                  ? "bg-[#F59F0A] text-[#0F1729]"
+                  ? "bg-[#F59F0A] text-[#0F1729] shadow-[0_10px_24px_rgba(245,159,10,0.22)] hover:-translate-y-0.5 hover:bg-[#E89206] hover:shadow-[0_14px_30px_rgba(245,159,10,0.32)] active:translate-y-0 active:shadow-[0_8px_18px_rgba(245,159,10,0.24)] cursor-pointer"
                   : "bg-[#facf84] text-[#0f172994] cursor-not-allowed"
               }`}
             >
               <img
                 src={lck}
                 alt="secure"
-                className={`w-4 h-4 ${agree ? "" : "opacity-60"}`}
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  agree ? "group-hover:scale-110" : "opacity-60"
+                }`}
                 style={{ filter: agree ? "none" : "grayscale(100%)" }}
               />
               Complete Payment
@@ -303,36 +310,6 @@ const Payment = () => {
           </div>
         </div>
       </div>
-
-      {/* Payment Success Popup - rendered in document.body so it always shows on top */}
-      {showSuccessPopup &&
-        createPortal(
-          <div
-            className="fixed inset-0 flex items-center justify-center p-4 bg-black/50"
-            style={{ zIndex: 99999 }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="payment-success-title"
-          >
-            <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-8 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
-                <FaCheck className="text-3xl text-emerald-600" />
-              </div>
-              <h3 id="payment-success-title" className="text-xl font-bold text-[#0F1729] mb-2">
-                Payment Successful
-              </h3>
-              <p className="text-sm text-[#65758B] mb-6">Your payment has been processed successfully.</p>
-              <button
-                type="button"
-                onClick={handleSuccessOk}
-                className="w-full h-12 rounded-xl bg-[#188B8B] text-white font-semibold hover:bg-teal-700 transition"
-              >
-                Continue to Pretest
-              </button>
-            </div>
-          </div>,
-          document.body
-        )}
     </div>
   );
 }
