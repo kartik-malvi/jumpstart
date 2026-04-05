@@ -1,164 +1,97 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import "./index.css";
-
-// PAGES
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
-import Test from "./pages/Test";
-import Pretest from "./pages/Pretest";
-import PretestSections from "./pages/PretestSections";
-import SectionBreak from "./pages/SectionBreak";
-import Admindashboard from "./pages/admin/Admindashboard";
-import BookCounselling from "./pages/BookCounselling";
-import Payment from "./pages/Payment";
-import PaymentConfirmation from "./pages/PaymentConfirmation";
-import Careerdetail from "./pages/Careerdetail";
-import Result from "./pages/Result";
-import StudentReport from "./pages/StudentReport";
-import Livetest from "./pages/Livetest";
-import TestCompleted from "./pages/TestCompleted";
-import Profile from "./pages/Profile";
-import EditProfile from "./pages/EditProfile";
-import TestPaused from "./pages/TestPaused";
-
-// LAYOUTS
 import MainLayout from "./layout/MainLayout";
 import BlankLayout from "./layout/BlankLayout";
 import AdminLayout from "./layout/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
-import TestSubmissions from "./pages/admin/TestSubmissions";
-import PublishedResult from "./pages/admin/PublishedResult";
-import UserManagement from "./pages/admin/UserManagement";
-import Payments from "./pages/admin/Payments";
-import Analytics from "./pages/admin/Analytics";
-import Settings from "./pages/admin/Settings";
-import ReviewSubmission from "./pages/admin/ReviewSubmission";
+
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Test = lazy(() => import("./pages/Test"));
+const Pretest = lazy(() => import("./pages/Pretest"));
+const PretestSections = lazy(() => import("./pages/PretestSections"));
+const SectionBreak = lazy(() => import("./pages/SectionBreak"));
+const BookCounselling = lazy(() => import("./pages/BookCounselling"));
+const Payment = lazy(() => import("./pages/Payment"));
+const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
+const Careerdetail = lazy(() => import("./pages/Careerdetail"));
+const Result = lazy(() => import("./pages/Result"));
+const StudentReport = lazy(() => import("./pages/StudentReport"));
+const Livetest = lazy(() => import("./pages/Livetest"));
+const TestCompleted = lazy(() => import("./pages/TestCompleted"));
+const Profile = lazy(() => import("./pages/Profile"));
+const EditProfile = lazy(() => import("./pages/EditProfile"));
+const TestPaused = lazy(() => import("./pages/TestPaused"));
+const Admindashboard = lazy(() => import("./pages/admin/Admindashboard"));
+const TestSubmissions = lazy(() => import("./pages/admin/TestSubmissions"));
+const PublishedResult = lazy(() => import("./pages/admin/PublishedResult"));
+const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
+const Payments = lazy(() => import("./pages/admin/Payments"));
+const Analytics = lazy(() => import("./pages/admin/Analytics"));
+const Settings = lazy(() => import("./pages/admin/Settings"));
+const ReviewSubmission = lazy(() => import("./pages/admin/ReviewSubmission"));
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center px-6 text-sm font-medium text-slate-500">
+      Loading page...
+    </div>
+  );
+}
+
+function withSuspense(element) {
+  return <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
+}
+
+const protectedPage = (element) =>
+  withSuspense(<ProtectedRoute>{element}</ProtectedRoute>);
 
 const router = createBrowserRouter([
-  // 🌍 PUBLIC + USER PAGES (WITH HEADER & FOOTER)
   {
     path: "/",
     element: <MainLayout />,
     children: [
-      { path: "/", element: <Home /> },
-      { path: "/login", element: <Login /> },
-      { path: "/signup", element: <Signup /> },
-      { path: "/test", element: <Test /> },
-      {
-        path: "/pretest",
-        element: (
-          <ProtectedRoute>
-            <Pretest />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/Pretest",
-        element: (
-          <ProtectedRoute>
-            <Pretest />
-          </ProtectedRoute>
-        ),
-      },
+      { path: "/", element: withSuspense(<Home />) },
+      { path: "/login", element: withSuspense(<Login />) },
+      { path: "/signup", element: withSuspense(<Signup />) },
+      { path: "/test", element: withSuspense(<Test />) },
+      { path: "/pretest", element: protectedPage(<Pretest />) },
+      { path: "/Pretest", element: protectedPage(<Pretest />) },
       {
         path: "/pretest/sections",
-        element: (
-          <ProtectedRoute>
-            <PretestSections />
-          </ProtectedRoute>
-        ),
+        element: protectedPage(<PretestSections />),
       },
       {
         path: "/Pretest/sections",
-        element: (
-          <ProtectedRoute>
-            <PretestSections />
-          </ProtectedRoute>
-        ),
+        element: protectedPage(<PretestSections />),
       },
-      { path: "/bookcounselling", element: <BookCounselling /> },
-      {
-        path: "/payment",
-        element: (
-          <ProtectedRoute>
-            <Payment />
-          </ProtectedRoute>
-        ),
-      },
+      { path: "/bookcounselling", element: withSuspense(<BookCounselling />) },
+      { path: "/payment", element: protectedPage(<Payment />) },
       {
         path: "/payment-confirmation",
-        element: (
-          <ProtectedRoute>
-            <PaymentConfirmation />
-          </ProtectedRoute>
-        ),
+        element: protectedPage(<PaymentConfirmation />),
       },
-      {
-        path: "/careerdetail",
-        element: (
-          <ProtectedRoute>
-            <Careerdetail />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/result",
-        element: (
-          <ProtectedRoute>
-            <Result />
-          </ProtectedRoute>
-        ),
-      },
+      { path: "/careerdetail", element: protectedPage(<Careerdetail />) },
+      { path: "/result", element: protectedPage(<Result />) },
       {
         path: "/result/:reportId",
-        element: (
-          <ProtectedRoute>
-            <StudentReport />
-          </ProtectedRoute>
-        ),
+        element: protectedPage(<StudentReport />),
       },
       {
         path: "/test-completed",
-        element: (
-          <ProtectedRoute>
-            <TestCompleted />
-          </ProtectedRoute>
-        ),
+        element: protectedPage(<TestCompleted />),
       },
-      {
-        path: "/dashboard",
-        element: (
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/profile",
-        element: (
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/profile/edit",
-        element: (
-          <ProtectedRoute>
-            <EditProfile />
-          </ProtectedRoute>
-        ),
-      },
+      { path: "/dashboard", element: protectedPage(<Dashboard />) },
+      { path: "/profile", element: protectedPage(<Profile />) },
+      { path: "/profile/edit", element: protectedPage(<EditProfile />) },
     ],
   },
-
-  // 🛠️ ADMIN ROUTES (NO HEADER / FOOTER)
   {
     path: "/admin",
-    element: (
+    element: withSuspense(
       <ProtectedRoute requiredRole="admin" unauthorizedTo="/dashboard">
         <AdminLayout />
       </ProtectedRoute>
@@ -170,53 +103,47 @@ const router = createBrowserRouter([
       },
       {
         path: "dashboard",
-        element: <Admindashboard />,
+        element: withSuspense(<Admindashboard />),
       },
       {
         path: "testsubmissions",
-        element: <TestSubmissions />,
+        element: withSuspense(<TestSubmissions />),
       },
       {
         path: "testsubmissions/:userId",
-        element: <ReviewSubmission />,
+        element: withSuspense(<ReviewSubmission />),
       },
       {
         path: "publishedresults",
-        element: <PublishedResult />,
+        element: withSuspense(<PublishedResult />),
       },
-       {
+      {
         path: "usermanagement",
-        element: <UserManagement />,
+        element: withSuspense(<UserManagement />),
       },
       {
         path: "payments",
-        element: <Payments />,
+        element: withSuspense(<Payments />),
       },
       {
         path: "analytics",
-        element: <Analytics />,
+        element: withSuspense(<Analytics />),
       },
-       {
+      {
         path: "settings",
-        element: <Settings />,
+        element: withSuspense(<Settings />),
       },
     ],
   },
-
-  // 🧱 BLANK PAGES (no header/footer)
   {
     element: <BlankLayout />,
     children: [
-      { path: "/sectionbreak", element: <ProtectedRoute><SectionBreak /></ProtectedRoute> },
-      { path: "/SectionBreak", element: <ProtectedRoute><SectionBreak /></ProtectedRoute> },
-      { path: "/test-paused", element: <ProtectedRoute><TestPaused /></ProtectedRoute> },
+      { path: "/sectionbreak", element: protectedPage(<SectionBreak />) },
+      { path: "/SectionBreak", element: protectedPage(<SectionBreak />) },
+      { path: "/test-paused", element: protectedPage(<TestPaused />) },
       {
         path: "/livetest/:sectionId",
-        element: (
-          <ProtectedRoute>
-            <Livetest />
-          </ProtectedRoute>
-        ),
+        element: protectedPage(<Livetest />),
       },
     ],
   },
